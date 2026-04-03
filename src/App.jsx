@@ -12,8 +12,10 @@ import {
 } from 'firebase/firestore';
 import { 
   getAuth, 
-  signInAnonymously, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut
 } from 'firebase/auth';
 import { 
   Plus, 
@@ -30,32 +32,29 @@ import {
   GripVertical,
   Tag as TagIcon,
   Filter,
-  Key
+  LogOut,
+  Lock,
+  Mail,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
 
-/**
- * SELF-HOSTING INSTRUCTIONS:
- * 1. Go to https://console.firebase.google.com/
- * 2. Create a project and add a "Web App".
- * 3. Replace the 'firebaseConfig' object below with your actual keys.
- * 4. Enable "Anonymous Auth" and "Firestore" in the Firebase console.
- */
+// --- REPLACE THIS WITH YOUR FIREBASE CONFIG ---
 const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config)
   ? JSON.parse(__firebase_config) 
   : {
-      apiKey: "AIzaSyAKxMTyAC6Scy2tgUgHX7KEH9Yz0MqiA6Q",
-      authDomain: "eisenhower-d9e5f.firebaseapp.com",
-      projectId: "eisenhower-d9e5f",
-      storageBucket: "eisenhower-d9e5f.firebasestorage.app",
-      messagingSenderId: "324572083965",
-      appId: "1:324572083965:web:6c8bccb006292333c87094",
-      measurementId: "G-EEJX95SNYP"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_APP_ID"
     };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-eisenhower-app';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'eisenhower-hub-v2';
 
 const QUADRANTS = [
   { id: 'do', title: 'Do First', subtitle: 'Urgent & Important', color: 'bg-rose-500', icon: <Zap className="w-4 h-4" /> },
@@ -66,6 +65,7 @@ const QUADRANTS = [
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [newTaskText, setNewTaskText] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -73,35 +73,62 @@ export default function App() {
   const [activeTag, setActiveTag] = useState(null);
   const [dragOverQuadrant, setDragOverQuadrant] = useState(null);
 
-  // Auth Initialization
+  // Auth States
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [authError, setAuthError] = useState('');
+
+  // 1. Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        signInAnonymously(auth);
-      }
+      setUser(currentUser);
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Real-time Data Sync
+  // 2. Secured Data Sync
   useEffect(() => {
     if (!user) return;
+    
+    // RULE 1: Use the private path: artifacts/{appId}/users/{userId}/tasks
     const tasksRef = collection(db, 'artifacts', appId, 'users', user.uid, 'tasks');
     const q = query(tasksRef);
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => console.error("Sync Error:", err));
+    
     return () => unsubscribe();
   }, [user]);
 
-  // Actions
+  // 3. Auth Actions
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      if (authMode === 'login') {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err) {
+      setAuthError(err.message);
+    }
+  };
+
+  const handleLogout = () => signOut(auth);
+
+  // 4. Task Actions (Private Path)
+  const getTasksRef = () => collection(db, 'artifacts', appId, 'users', user.uid, 'tasks');
+  const getTaskDoc = (id) => doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', id);
+
   const addTask = async (e) => {
     e.preventDefault();
     if (!newTaskText.trim() || !user) return;
     const tags = newTaskText.match(/#\w+/g) || [];
-    await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'tasks'), {
+    await addDoc(getTasksRef(), {
       text: newTaskText,
       quadrant: 'inbox',
       completed: false,
@@ -114,21 +141,18 @@ export default function App() {
 
   const moveTask = async (taskId, newQuadrant) => {
     if (!user) return;
-    const taskRef = doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId);
-    await updateDoc(taskRef, { quadrant: newQuadrant });
+    await updateDoc(getTaskDoc(taskId), { quadrant: newQuadrant });
   };
 
   const toggleTask = async (task) => {
-    const taskRef = doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', task.id);
-    await updateDoc(taskRef, { completed: !task.completed });
+    await updateDoc(getTaskDoc(task.id), { completed: !task.completed });
   };
 
   const deleteTask = async (taskId) => {
-    const taskRef = doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId);
-    await deleteDoc(taskRef);
+    await deleteDoc(getTaskDoc(taskId));
   };
 
-  // Drag Handlers
+  // Drag and Drop
   const handleDragStart = (e, taskId) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.setData('taskId', taskId);
@@ -141,7 +165,7 @@ export default function App() {
     setDragOverQuadrant(null);
   };
 
-  // Logic
+  // Logic for Tags & Groups
   const allTags = useMemo(() => {
     const tags = new Set();
     tasks.forEach(t => t.tags?.forEach(tag => tags.add(tag)));
@@ -160,16 +184,82 @@ export default function App() {
     return base;
   }, [filteredTasks]);
 
-  if (!user) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-      <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="font-bold uppercase tracking-widest text-[10px]">Establishing Secure Link...</p>
+  // Loading State
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-slate-50">
+      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
+  // Login View
+  if (!user) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 md:p-12 overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+           <Lock className="w-32 h-32 text-indigo-600" />
+        </div>
+        
+        <div className="relative">
+          <div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg mb-8 mx-auto">
+            <LayoutGrid className="w-8 h-8" />
+          </div>
+          <h2 className="text-3xl font-black text-center text-slate-800 mb-2">FocusEngine</h2>
+          <p className="text-center text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-8">Secure Task Orchestration</p>
+          
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                <input 
+                  type="email" 
+                  required
+                  placeholder="name@example.com"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Secret Key</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                <input 
+                  type="password" 
+                  required
+                  placeholder="••••••••"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {authError && <p className="text-rose-500 text-xs font-bold text-center px-4">{authError}</p>}
+
+            <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
+              {authMode === 'login' ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+              {authMode === 'login' ? 'Sign In' : 'Create Account'}
+            </button>
+          </form>
+
+          <button 
+            onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+            className="w-full mt-6 text-slate-400 text-xs font-bold hover:text-indigo-600 transition-colors"
+          >
+            {authMode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Main App View
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24">
-      {/* Dynamic Header */}
+      {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex justify-between items-center">
@@ -178,26 +268,23 @@ export default function App() {
                 <LayoutGrid className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight">FocusEngine <span className="text-indigo-600">v2</span></h1>
+                <h1 className="text-xl font-black tracking-tight">FocusEngine</h1>
                 <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  Cloud Synced
+                  Authenticated: {user.email}
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 group">
-               <div className="hidden sm:block text-right mr-2">
-                 <p className="text-[10px] font-black text-slate-300 uppercase">Your Session Key</p>
-                 <p className="text-xs font-mono text-slate-500">{user.uid.slice(0, 8)}</p>
-               </div>
-               <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
-                 <Key className="w-5 h-5" />
-               </div>
-            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
           </div>
 
-          {/* Grouping Filters */}
           {allTags.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
               <Filter className="w-4 h-4 text-slate-300 shrink-0" />
@@ -223,7 +310,7 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
-        {/* Inbox / Capture Area */}
+        {/* Inbox Area */}
         <section 
           onDragOver={(e) => { e.preventDefault(); setDragOverQuadrant('inbox'); }}
           onDragLeave={() => setDragOverQuadrant(null)}
@@ -233,7 +320,7 @@ export default function App() {
           <div className="p-6 border-b border-slate-50 flex justify-between items-center">
             <h2 className="font-black text-slate-700 flex items-center gap-3">
               <Inbox className="w-6 h-6 text-indigo-500" />
-              Brain Dump
+              Capture Inbox
               <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black">
                 {groupedTasks.inbox.length} PENDING
               </span>
@@ -241,7 +328,7 @@ export default function App() {
             {!isAdding && (
               <button 
                 onClick={() => setIsAdding(true)}
-                className="bg-indigo-600 text-white p-2 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-100"
+                className="bg-indigo-600 text-white p-2 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -254,7 +341,7 @@ export default function App() {
                 <input 
                   autoFocus
                   type="text"
-                  placeholder="Just get it out of your head... (use #tags to group)"
+                  placeholder="Capture your thoughts... (use #tags)"
                   className="w-full px-6 py-5 rounded-2xl border-2 border-indigo-100 focus:border-indigo-500 outline-none transition-all text-lg shadow-inner bg-slate-50"
                   value={newTaskText}
                   onChange={(e) => setNewTaskText(e.target.value)}
@@ -275,14 +362,14 @@ export default function App() {
               {groupedTasks.inbox.length === 0 && !isAdding && (
                 <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-100 rounded-3xl opacity-40">
                   <Sparkles className="w-10 h-10 mx-auto mb-3 text-indigo-300" />
-                  <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Mind is Clear</p>
+                  <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Your mind is clear</p>
                 </div>
               )}
             </div>
           </div>
         </section>
 
-        {/* The Matrix */}
+        {/* Matrix Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {QUADRANTS.map(q => (
             <div 
@@ -303,7 +390,7 @@ export default function App() {
                 <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mt-1">{q.subtitle}</p>
               </div>
 
-              <div className="flex-1 p-4 space-y-3 overflow-y-auto max-h-[500px] scrollbar-thin">
+              <div className="flex-1 p-4 space-y-3 overflow-y-auto max-h-[500px]">
                 {groupedTasks[q.id].map(task => (
                   <TaskItem 
                     key={task.id} 
@@ -313,26 +400,11 @@ export default function App() {
                     onDragStart={(e) => handleDragStart(e, task.id)}
                   />
                 ))}
-                {groupedTasks[q.id].length === 0 && (
-                  <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-50 rounded-2xl py-16">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Drop Here</p>
-                  </div>
-                )}
               </div>
             </div>
           ))}
         </div>
       </main>
-
-      {/* Persistence Note */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-2xl border border-slate-100 px-6 py-3 rounded-full flex items-center gap-4 z-50 transition-all hover:scale-105">
-        <div className="flex -space-x-2">
-          <div className="w-8 h-8 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-white text-[10px] font-black">PC</div>
-          <div className="w-8 h-8 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-white text-[10px] font-black">PH</div>
-        </div>
-        <div className="h-4 w-[1px] bg-slate-200" />
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cross-Platform Active</p>
-      </div>
     </div>
   );
 }
@@ -344,7 +416,7 @@ function TaskItem({ task, onToggle, onDelete, onDragStart }) {
       onDragStart={onDragStart}
       className={`group bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4 transition-all cursor-grab active:cursor-grabbing hover:border-indigo-200 hover:shadow-md ${task.completed ? 'opacity-50 grayscale-[0.5]' : ''}`}
     >
-      <GripVertical className="w-4 h-4 text-slate-200 shrink-0 group-hover:text-indigo-300 transition-colors" />
+      <GripVertical className="w-4 h-4 text-slate-200 shrink-0 group-hover:text-indigo-300" />
       <button onClick={onToggle} className="shrink-0">
         {task.completed ? <CheckCircle2 className="w-6 h-6 text-indigo-500" /> : <Circle className="w-6 h-6 text-slate-200 group-hover:text-indigo-400" />}
       </button>
@@ -352,7 +424,7 @@ function TaskItem({ task, onToggle, onDelete, onDragStart }) {
         <span className={`text-sm font-bold tracking-tight ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
           {task.text.replace(/#\w+/g, '').trim()}
         </span>
-        {task.tags && task.tags.length > 0 && (
+        {task.tags?.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-1">
             {task.tags.map(tag => (
               <span key={tag} className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter bg-indigo-50 px-1.5 py-0.5 rounded">#{tag}</span>
@@ -360,7 +432,7 @@ function TaskItem({ task, onToggle, onDelete, onDragStart }) {
           </div>
         )}
       </div>
-      <button onClick={onDelete} className="p-2 text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button onClick={onDelete} className="p-2 text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100">
         <Trash2 className="w-4 h-4" />
       </button>
     </div>
