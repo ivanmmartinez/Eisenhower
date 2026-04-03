@@ -36,24 +36,34 @@ import {
   Lock,
   Mail,
   UserPlus,
-  LogIn
+  LogIn,
+  AlertCircle
 } from 'lucide-react';
 
-// --- REPLACE THIS WITH YOUR FIREBASE CONFIG ---
+// --- ATTENTION: REPLACE THE OBJECT BELOW WITH YOUR FIREBASE KEYS ---
+// You get these from: Firebase Console > Project Settings > General > Your Apps
 const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config)
   ? JSON.parse(__firebase_config) 
-  : {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_APP_ID"
-    };
+  :{
+  apiKey: "AIzaSyAKxMTyAC6Scy2tgUgHX7KEH9Yz0MqiA6Q",
+  authDomain: "eisenhower-d9e5f.firebaseapp.com",
+  projectId: "eisenhower-d9e5f",
+  storageBucket: "eisenhower-d9e5f.firebasestorage.app",
+  messagingSenderId: "324572083965",
+  appId: "1:324572083965:web:6c8bccb006292333c87094",
+  measurementId: "G-EEJX95SNYP"
+};
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Validation check to show a better error if user forgot to add keys
+const isConfigValid = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+let app, auth, db;
+if (isConfigValid) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'eisenhower-hub-v2';
 
 const QUADRANTS = [
@@ -81,6 +91,10 @@ export default function App() {
 
   // 1. Auth Listener
   useEffect(() => {
+    if (!isConfigValid) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -90,9 +104,8 @@ export default function App() {
 
   // 2. Secured Data Sync
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
     
-    // RULE 1: Use the private path: artifacts/{appId}/users/{userId}/tasks
     const tasksRef = collection(db, 'artifacts', appId, 'users', user.uid, 'tasks');
     const q = query(tasksRef);
     
@@ -106,6 +119,7 @@ export default function App() {
   // 3. Auth Actions
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (!isConfigValid) return;
     setAuthError('');
     try {
       if (authMode === 'login') {
@@ -184,6 +198,27 @@ export default function App() {
     return base;
   }, [filteredTasks]);
 
+  // If the user hasn't put their keys in yet, show a helpful setup screen
+  if (!isConfigValid) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-rose-100 p-8 text-center">
+          <div className="bg-rose-50 w-16 h-16 rounded-2xl flex items-center justify-center text-rose-500 mx-auto mb-6">
+            <AlertCircle className="w-10 h-10" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-4">Configuration Required</h2>
+          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+            You need to add your personal <strong>Firebase Keys</strong> to the <code>firebaseConfig</code> section in <code>src/App.jsx</code> (around line 43) before this app can connect to your database.
+          </p>
+          <div className="bg-slate-50 rounded-xl p-4 text-left font-mono text-[10px] text-slate-400 overflow-hidden">
+            apiKey: "YOUR_API_KEY",<br/>
+            projectId: "YOUR_PROJECT_ID"...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Loading State
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-slate-50">
@@ -223,7 +258,7 @@ export default function App() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Secret Key</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Secret Key (Password)</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                 <input 
