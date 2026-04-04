@@ -15,7 +15,10 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut
+  signOut,
+  GoogleAuthProvider,
+  linkWithPopup,
+  signInWithPopup
 } from 'firebase/auth';
 import { 
   Plus, 
@@ -41,7 +44,8 @@ import {
   Settings,
   AlertCircle,
   GripVertical,
-  Compass
+  Compass,
+  Calendar
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -125,6 +129,10 @@ export default function App() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [draggedId, setDraggedId] = useState(null);
 
+  // Google Calendar States
+  const [googleToken, setGoogleToken] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Auth States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -173,6 +181,57 @@ export default function App() {
       if (quad && newWatered >= quad.stages) updates.completed = true;
       await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', focusTask.id), updates);
       setFocusTask(null);
+    }
+  };
+
+  // Google Calendar Integration
+  const connectGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      setGoogleToken(credential.accessToken);
+    } catch (error) {
+      console.error("Google Auth Error:", error);
+    }
+  };
+
+  const scheduleInGoogleCalendar = async (task) => {
+    if (!googleToken) {
+      await connectGoogle();
+    }
+    
+    setIsSyncing(true);
+    const start = new Date();
+    const end = new Date(start.getTime() + 30 * 60000); // 30 mins duration
+
+    try {
+      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          summary: `[Grove] ${task.text}`,
+          description: 'Scheduled via Priority Grove Strategic Hub',
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() }
+        })
+      });
+
+      if (response.ok) {
+        // Optionally mark task as "Scheduled" or just complete it
+        await toggleComplete(task);
+      } else {
+        const errData = await response.json();
+        console.error("Calendar Sync Failed:", errData);
+      }
+    } catch (error) {
+      console.error("Network Error syncing calendar:", error);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -359,7 +418,7 @@ export default function App() {
         <div className="flex justify-center gap-2 mb-6">
           <TabButton active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} label="Tray" />
           <TabButton active={activeTab === 'garden'} onClick={() => setActiveTab('garden')} label="Garden" />
-          <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Stats" />
+          <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Legacy" />
         </div>
 
         {activeTab === 'inbox' && (
@@ -424,6 +483,8 @@ export default function App() {
                       onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }}
                       onDelete={() => deleteTask(task.id)} 
                       onDragStart={(e) => handleDragStart(e, task.id)}
+                      onCalendar={() => scheduleInGoogleCalendar(task)}
+                      isSyncing={isSyncing}
                     />
                   ))}
                   {grouped[q.id].length === 0 && (
@@ -436,11 +497,25 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 animate-in zoom-in duration-300">
-            <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
-            <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
-            <StatCard label="Mins" val={tasks.reduce((acc, t) => acc + (t.watered || 0), 0) * sessionMins} icon={<Droplets size={20} className="text-blue-500" />} />
-            <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
+          <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in duration-300">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
+              <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
+              <StatCard label="Mins" val={tasks.reduce((acc, t) => acc + (t.watered || 0), 0) * sessionMins} icon={<Droplets size={20} className="text-blue-500" />} />
+              <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
+            </div>
+            
+            <div className="bg-white border border-stone-200 rounded-3xl p-6 text-center max-w-md mx-auto">
+               <h3 className="text-sm font-bold text-stone-800 mb-4 uppercase tracking-widest">External Connectivity</h3>
+               <button 
+                  onClick={connectGoogle}
+                  className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-stone-900 text-white hover:bg-black'}`}
+               >
+                 <Calendar size={18} />
+                 {googleToken ? 'Google Connected' : 'Connect Google Calendar'}
+               </button>
+               {!googleToken && <p className="mt-3 text-[10px] text-stone-400 px-4 leading-relaxed">Required to sync the "Schedule" plot to your personal calendar.</p>}
+            </div>
           </div>
         )}
       </main>
@@ -473,7 +548,7 @@ function NavIcon({ active, onClick, icon }) {
   );
 }
 
-function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart, isInbox = false }) {
+function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart, onCalendar, isInbox = false, isSyncing = false }) {
   const quad = QUADRANTS.find(q => q.id === task.quadrant);
   const isBloom = task.completed || (quad && task.watered >= quad.stages);
   
@@ -510,6 +585,17 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart
           <div className="flex-1" />
         )}
         
+        {quad?.id === 'schedule' && !task.completed && (
+           <button 
+             onClick={onCalendar}
+             disabled={isSyncing}
+             className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+             title="Schedule on Google Calendar"
+           >
+             <Calendar size={14} className={isSyncing ? 'animate-pulse' : ''} />
+           </button>
+        )}
+
         {!isInbox && (
           <button onClick={onAction} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100" title="Move">
             <Settings size={14} />
