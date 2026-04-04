@@ -40,7 +40,8 @@ import {
   LayoutGrid,
   Settings,
   Circle,
-  AlertCircle
+  AlertCircle,
+  GripVertical
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -92,6 +93,7 @@ export default function App() {
   const [sessionMins, setSessionMins] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [draggedId, setDraggedId] = useState(null);
 
   // Auth States
   const [email, setEmail] = useState('');
@@ -156,15 +158,15 @@ export default function App() {
       createdAt: Date.now()
     });
     setNewTaskText('');
-    // Removed automatic menu popup to allow "keep adding" workflow
   };
 
   const setQuadrant = async (qid) => {
-    if (!selectedTask || !db) return;
-    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', selectedTask.id), { quadrant: qid });
+    const taskId = selectedTask?.id || draggedId;
+    if (!taskId || !db) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), { quadrant: qid });
     setShowPlantMenu(false);
     setSelectedTask(null);
-    // Stay on current tab instead of jumping to garden
+    setDraggedId(null);
   };
 
   const toggleComplete = async (task) => {
@@ -194,6 +196,20 @@ export default function App() {
     tasks.forEach(t => { if (b[t.quadrant]) b[t.quadrant].push(t); });
     return b;
   }, [tasks]);
+
+  // Drag and Drop Logic
+  const handleDragStart = (e, taskId) => {
+    setDraggedId(taskId);
+    e.dataTransfer.setData('taskId', taskId);
+  };
+
+  const handleDrop = async (e, targetQuadrant) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData('taskId') || draggedId;
+    if (!taskId || !db) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), { quadrant: targetQuadrant });
+    setDraggedId(null);
+  };
 
   if (!isConfigValid) return <SetupUI />;
   if (loading) return <Loader />;
@@ -272,10 +288,17 @@ export default function App() {
         <div className="fixed inset-0 z-[110] bg-stone-900/20 backdrop-blur-sm flex items-end justify-center animate-in fade-in">
           <div className="max-w-md w-full bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-2xl animate-in slide-in-from-bottom">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-bold text-stone-800">Plant this task</h3>
+              <h3 className="text-xl font-bold text-stone-800">Move Task</h3>
               <button onClick={() => setShowPlantMenu(false)} className="p-2 text-stone-300 hover:text-stone-600"><X size={20} /></button>
             </div>
             <div className="space-y-3">
+              <button onClick={() => setQuadrant('inbox')} className="w-full flex items-center gap-4 p-5 rounded-2xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
+                <div className={`p-3 rounded-xl bg-stone-100 text-stone-500`}><Inbox size={18} /></div>
+                <div>
+                  <div className="font-bold text-stone-800">Return to Tray</div>
+                  <div className="text-xs text-stone-400 font-medium">Unsorted thoughts</div>
+                </div>
+              </button>
               {QUADRANTS.map(q => (
                 <button key={q.id} onClick={() => setQuadrant(q.id)} className="w-full flex items-center gap-4 p-5 rounded-2xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
                   <div className={`p-3 rounded-xl ${q.bg} ${q.color}`}>{q.icon}</div>
@@ -320,14 +343,25 @@ export default function App() {
         </div>
 
         {activeTab === 'inbox' && (
-          <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-5">
+          <div 
+            className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-5"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e, 'inbox')}
+          >
             <form onSubmit={addTask} className="relative group">
               <input autoFocus type="text" placeholder="Dump a thought..." className="w-full px-8 py-5 bg-white border border-stone-200 rounded-2xl text-lg font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
               <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 bg-emerald-700 p-3 rounded-xl text-white shadow-md hover:bg-emerald-800 transition-all"><Plus size={24} /></button>
             </form>
             <div className="space-y-3">
               {grouped.inbox.map(task => (
-                <TaskItem key={task.id} task={task} onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }} onDelete={() => deleteTask(task.id)} isInbox />
+                <TaskItem 
+                  key={task.id} 
+                  task={task} 
+                  onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }} 
+                  onDelete={() => deleteTask(task.id)} 
+                  onDragStart={(e) => handleDragStart(e, task.id)}
+                  isInbox 
+                />
               ))}
               {grouped.inbox.length === 0 && (
                 <div className="py-20 text-center text-stone-200 flex flex-col items-center">
@@ -342,7 +376,12 @@ export default function App() {
         {activeTab === 'garden' && (
           <div className="space-y-16 animate-in fade-in duration-500">
             {QUADRANTS.map(q => (
-              <div key={q.id} className="space-y-6">
+              <div 
+                key={q.id} 
+                className="space-y-6"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, q.id)}
+              >
                 <div className="flex items-center gap-3 px-2">
                   <div className={`${q.color} ${q.bg} p-2.5 rounded-xl shadow-sm`}>{q.icon}</div>
                   <div>
@@ -359,6 +398,7 @@ export default function App() {
                       onComplete={() => toggleComplete(task)} 
                       onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }}
                       onDelete={() => deleteTask(task.id)} 
+                      onDragStart={(e) => handleDragStart(e, task.id)}
                     />
                   ))}
                   {grouped[q.id].length === 0 && (
@@ -408,15 +448,21 @@ function NavIcon({ active, onClick, icon }) {
   );
 }
 
-function TaskItem({ task, onNurture, onComplete, onAction, onDelete, isInbox = false }) {
+function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart, isInbox = false }) {
   const quad = QUADRANTS.find(q => q.id === task.quadrant);
   const isBloom = task.completed || (quad && task.watered >= quad.stages);
   
   return (
-    <div className={`bg-white border border-stone-200 rounded-3xl p-6 flex flex-col gap-6 transition-all hover:border-emerald-600 hover:shadow-sm ${task.completed ? 'opacity-40 grayscale' : ''}`}>
+    <div 
+      draggable
+      onDragStart={onDragStart}
+      className={`bg-white border border-stone-200 rounded-3xl p-6 flex flex-col gap-6 transition-all hover:border-emerald-600 hover:shadow-sm cursor-grab active:cursor-grabbing ${task.completed ? 'opacity-40 grayscale' : ''}`}
+    >
       <div className="flex items-center gap-5">
         <div className="shrink-0 flex items-center justify-center w-12 h-12 rounded-2xl bg-stone-50 text-emerald-700">
-          {isBloom ? <Flower2 size={28} className="animate-in zoom-in" /> : (task.watered || 0) > 0 ? <Sprout size={24} /> : <div className="w-3 h-3 bg-stone-200 rounded-full" />}
+          <div className="relative">
+            {isBloom ? <Flower2 size={28} className="animate-in zoom-in" /> : (task.watered || 0) > 0 ? <Sprout size={24} /> : <GripVertical size={20} className="text-stone-300" />}
+          </div>
         </div>
         <div className="grow overflow-hidden">
           <h3 className="text-lg font-bold text-stone-800 truncate leading-tight">{task.text}</h3>
@@ -435,9 +481,14 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, isInbox = f
           <button onClick={onAction} className="flex-1 bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-800 transition-colors shadow-sm"><Sprout size={16} /> Plant</button>
         ) : !task.completed && quad?.id !== 'eliminate' ? (
           <button onClick={onNurture} className="flex-1 bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-800 transition-colors shadow-sm"><Droplets size={16} /> Nurture</button>
-        ) : !isInbox ? (
-          <button onClick={onAction} className="flex-1 bg-stone-50 text-stone-400 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-stone-100 transition-colors">Re-sort</button>
         ) : null}
+        
+        {!isInbox && (
+          <button onClick={onAction} className="p-3 bg-stone-50 text-stone-400 rounded-xl hover:bg-stone-100 transition-colors" title="Move">
+            <Settings size={18} />
+          </button>
+        )}
+
         <button onClick={onComplete} className={`p-3 rounded-xl border transition-all ${task.completed ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-white text-stone-300 border-stone-200 hover:text-emerald-700'}`}><CheckCircle2 size={20} /></button>
         <button onClick={onDelete} className="p-3 bg-stone-50 text-stone-300 rounded-xl hover:text-rose-600 transition-all"><Trash2 size={20} /></button>
       </div>
