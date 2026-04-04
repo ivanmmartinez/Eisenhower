@@ -24,33 +24,35 @@ import {
   Zap, 
   Clock, 
   Users, 
-  Inbox,
-  Sparkles,
-  LogOut,
-  Lock,
-  Mail,
-  UserPlus,
-  LogIn,
-  AlertCircle,
-  ChevronRight,
-  Droplets,
-  Sprout,
-  Flower2,
-  Trees,
-  Leaf,
-  Trophy,
-  Play,
-  Pause,
-  RotateCcw,
-  Timer,
-  X,
-  Bug,
-  Compass
+  Inbox, 
+  Sparkles, 
+  LogOut, 
+  Lock, 
+  Mail, 
+  UserPlus, 
+  LogIn, 
+  AlertCircle, 
+  ChevronRight, 
+  Droplets, 
+  Sprout, 
+  Flower2, 
+  Trees, 
+  Leaf, 
+  Trophy, 
+  Play, 
+  Pause, 
+  RotateCcw, 
+  Timer, 
+  X, 
+  Bug, 
+  Compass,
+  LayoutGrid,
+  Settings
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
 const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config)
-  ? JSON.parse(__firebase_config) 
+  ? (typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config)
   : {
       apiKey: "AIzaSyAKxMTyAC6Scy2tgUgHX7KEH9Yz0MqiA6Q",
       authDomain: "eisenhower-d9e5f.firebaseapp.com",
@@ -61,7 +63,7 @@ const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_c
       measurementId: "G-EEJX95SNYP"
     };
 
-const isConfigValid = !!(firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY");
+const isConfigValid = !!(firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY");
 
 let app, auth, db;
 if (isConfigValid) {
@@ -204,7 +206,7 @@ export default function App() {
 
   const addTask = async (e) => {
     e.preventDefault();
-    if (!newTaskText.trim() || !user) return;
+    if (!newTaskText.trim() || !user || !db) return;
     const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'tasks'), {
       text: newTaskText,
       quadrant: 'inbox',
@@ -219,7 +221,7 @@ export default function App() {
   };
 
   const setTaskQuadrant = async (type) => {
-    if (!selectedTask || !user) return;
+    if (!selectedTask || !user || !db) return;
     await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', selectedTask.id), { quadrant: type });
     setShowPlantingMenu(false);
     setSelectedTask(null);
@@ -228,6 +230,7 @@ export default function App() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (!auth) return;
     setAuthError('');
     try {
       if (authMode === 'login') await signInWithEmailAndPassword(auth, email, password);
@@ -236,12 +239,18 @@ export default function App() {
   };
 
   const toggleTask = async (task) => {
+    if (!db || !user) return;
     const quad = QUADRANTS.find(q => q.id === task.quadrant);
     const isFinishing = !task.completed;
     await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', task.id), { 
       completed: isFinishing,
       watered: isFinishing && quad ? quad.stages : task.watered 
     });
+  };
+
+  const deleteTask = async (taskId) => {
+    if (!db || !user) return;
+    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId));
   };
 
   const groveVitality = useMemo(() => {
