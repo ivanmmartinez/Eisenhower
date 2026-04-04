@@ -45,7 +45,9 @@ import {
   AlertCircle,
   GripVertical,
   Compass,
-  Calendar
+  Calendar,
+  Link2,
+  ExternalLink
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -132,6 +134,7 @@ export default function App() {
   // Google Calendar States
   const [googleToken, setGoogleToken] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [googleError, setGoogleError] = useState(null);
 
   // Auth States
   const [email, setEmail] = useState('');
@@ -184,55 +187,58 @@ export default function App() {
     }
   };
 
-  // Google Calendar Integration
   const connectGoogle = async () => {
+    setGoogleError(null);
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     try {
-      const result = await signInWithPopup(auth, provider);
+      let result;
+      // If user is already logged in with email, we link. Otherwise we sign in.
+      if (auth.currentUser) {
+        result = await linkWithPopup(auth.currentUser, provider);
+      } else {
+        result = await signInWithPopup(auth, provider);
+      }
       const credential = GoogleAuthProvider.credentialFromResult(result);
       setGoogleToken(credential.accessToken);
     } catch (error) {
       console.error("Google Auth Error:", error);
+      setGoogleError(error.message);
     }
   };
 
   const scheduleInGoogleCalendar = async (task) => {
     if (!googleToken) {
       await connectGoogle();
+      return;
     }
-    
     setIsSyncing(true);
     const start = new Date();
-    const end = new Date(start.getTime() + 30 * 60000); // 30 mins duration
-
+    const end = new Date(start.getTime() + 30 * 60000);
     try {
       const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${googleToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${googleToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           summary: `[Grove] ${task.text}`,
-          description: 'Scheduled via Priority Grove Strategic Hub',
+          description: 'Scheduled via Priority Grove Hub',
           start: { dateTime: start.toISOString() },
           end: { dateTime: end.toISOString() }
         })
       });
-
-      if (response.ok) {
-        // Optionally mark task as "Scheduled" or just complete it
-        await toggleComplete(task);
-      } else {
+      if (response.ok) await toggleComplete(task);
+      else {
         const errData = await response.json();
-        console.error("Calendar Sync Failed:", errData);
+        if (errData.error?.status === "UNAUTHENTICATED") {
+          setGoogleToken(null);
+          await connectGoogle();
+        } else {
+          setGoogleError(`Calendar API Error: ${errData.error?.message || 'Unknown'}`);
+        }
       }
-    } catch (error) {
-      console.error("Network Error syncing calendar:", error);
-    } finally {
-      setIsSyncing(false);
-    }
+    } catch (error) { 
+      setGoogleError("Failed to reach Google servers.");
+    } finally { setIsSyncing(false); }
   };
 
   const addTask = async (e) => {
@@ -308,7 +314,7 @@ export default function App() {
           <Sprout size={28} />
         </div>
         <h1 className="text-xl font-bold text-stone-800">Priority Grove</h1>
-        <p className="text-stone-400 text-xs uppercase tracking-widest mb-8">Nurture Intentions</p>
+        <p className="text-stone-400 text-[10px] font-black uppercase tracking-widest mb-8 italic">Cultivate your focus</p>
         <form onSubmit={async (e) => {
           e.preventDefault();
           setAuthError('');
@@ -317,22 +323,22 @@ export default function App() {
             else await createUserWithEmailAndPassword(auth, email, password);
           } catch (err) { setAuthError(err.message); }
         }} className="space-y-3">
-          <input type="email" required placeholder="Email" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Password" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm" value={password} onChange={e => setPassword(e.target.value)} />
-          {authError && <p className="text-rose-600 text-[10px] font-medium">{authError}</p>}
-          <button type="submit" className="w-full bg-emerald-800 text-white py-2.5 rounded-xl font-bold hover:bg-emerald-900 transition-all text-sm">
-            {authMode === 'login' ? 'Enter Grove' : 'Create Grove'}
+          <input type="email" required placeholder="Gardener Email" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Secret Key" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+          {authError && <p className="text-rose-600 text-[10px] font-bold uppercase">{authError}</p>}
+          <button type="submit" className="w-full bg-emerald-800 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition-all shadow-md text-sm uppercase tracking-widest">
+            {authMode === 'login' ? 'Enter Grove' : 'Plant Roots'}
           </button>
         </form>
-        <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="mt-6 text-stone-400 text-[10px] uppercase font-bold tracking-widest hover:text-emerald-700">
-          {authMode === 'login' ? "Sign up" : "Login"}
+        <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="mt-6 text-stone-400 text-[10px] uppercase font-black tracking-[0.2em] hover:text-emerald-700 transition-colors">
+          {authMode === 'login' ? "Seed an account" : "Back to login"}
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#f8faf8] text-stone-800 font-sans pb-24 md:pb-12 overflow-x-hidden">
+    <div className="min-h-screen bg-[#f8faf8] text-stone-800 font-sans pb-24 md:pb-12 overflow-x-hidden selection:bg-emerald-500/10">
       
       {/* NURTURE TIMER OVERLAY */}
       {focusTask && (
@@ -345,13 +351,13 @@ export default function App() {
             ))}
           </div>
           <div className="text-center mb-10 px-6">
-            <h2 className="text-xl md:text-3xl font-bold text-stone-800 mb-1">Nurturing Growth</h2>
-            <p className="text-stone-400 text-sm italic truncate max-w-[280px] mx-auto">"{focusTask.text}"</p>
+            <h2 className="text-xl md:text-3xl font-black text-stone-800 mb-1 leading-tight uppercase tracking-tighter italic">Nurturing Growth</h2>
+            <p className="text-stone-400 text-sm italic truncate max-w-[280px] md:max-w-md mx-auto">"{focusTask.text}"</p>
           </div>
           <div className="relative w-56 h-56 md:w-72 md:h-72 mb-12 flex items-center justify-center">
             <svg className="absolute inset-0 w-full h-full -rotate-90">
               <circle cx="50%" cy="50%" r="45%" fill="none" stroke="#f1f5f1" strokeWidth="6" />
-              <circle cx="50%" cy="50%" r="45%" fill="none" stroke="#059669" strokeWidth="6" strokeLinecap="round" strokeDasharray="283%" strokeDashoffset={283 - (283 * (timeLeft / (sessionMins * 60)))} className="transition-all duration-1000 ease-linear" />
+              <circle cx="50%" cy="50%" r="45%" fill="none" stroke="#059669" strokeWidth="6" strokeLinecap="round" strokeDasharray="283%" strokeDashoffset={283 - (283 * (timeLeft / (sessionMins * 60)))} className="transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(5,150,105,0.2)]" />
             </svg>
             <span className="text-5xl md:text-7xl font-light tabular-nums text-stone-700">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
           </div>
@@ -369,22 +375,22 @@ export default function App() {
       {/* PLANTING SHEET */}
       {showPlantMenu && (
         <div className="fixed inset-0 z-[110] bg-stone-900/20 backdrop-blur-sm flex items-end md:items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-[2rem] p-6 pb-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in duration-300">
+          <div className="max-w-md md:max-w-xl w-full bg-white rounded-[2rem] p-6 pb-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in duration-300">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-stone-800">Move Task</h3>
-              <button onClick={() => setShowPlantMenu(false)} className="p-2 text-stone-300 hover:text-stone-600"><X size={18} /></button>
+              <h3 className="text-lg md:text-xl font-bold text-stone-800 uppercase tracking-tight italic">Assign Strategy</h3>
+              <button onClick={() => setShowPlantMenu(false)} className="p-2 text-stone-300 hover:text-stone-600 transition-colors"><X size={18} /></button>
             </div>
-            <div className="space-y-2">
-              <button onClick={() => setQuadrant('inbox')} className="w-full flex items-center gap-4 p-3 rounded-xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <button onClick={() => setQuadrant('inbox')} className="md:col-span-2 flex items-center gap-4 p-3 rounded-xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
                 <div className={`p-2 rounded-lg bg-stone-100 text-stone-500`}><Inbox size={16} /></div>
                 <div className="font-bold text-stone-800 text-sm">Return to Tray</div>
               </button>
               {QUADRANTS.map(q => (
-                <button key={q.id} onClick={() => setQuadrant(q.id)} className="w-full flex items-center gap-4 p-3 rounded-xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
+                <button key={q.id} onClick={() => setQuadrant(q.id)} className="flex items-center gap-4 p-3 rounded-xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
                   <div className={`p-2 rounded-lg ${q.bg} ${q.color}`}>{q.icon}</div>
                   <div>
-                    <div className="font-bold text-stone-800 text-sm">{q.name}</div>
-                    <div className="text-[9px] text-stone-400 font-medium uppercase tracking-wider">{q.desc}</div>
+                    <div className="font-bold text-stone-800 text-sm leading-tight">{q.name}</div>
+                    <div className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-0.5">{q.desc}</div>
                   </div>
                 </button>
               ))}
@@ -398,21 +404,24 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-700 p-1.5 rounded-lg text-white shadow-sm"><Sprout size={18} /></div>
-            <div>
-              <h1 className="text-sm md:text-base font-bold text-stone-800">Priority Grove</h1>
+            <div className="hidden sm:block">
+              <h1 className="text-sm font-bold text-stone-800 uppercase tracking-tighter">Priority Grove</h1>
               <div className="flex items-center gap-2">
                 <div className="w-12 md:w-20 h-1 bg-stone-100 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-600 transition-all duration-1000" style={{ width: `${stats.health}%` }} />
                 </div>
-                <span className="text-[8px] md:text-[10px] font-bold text-stone-400 uppercase tracking-wider">{stats.health}% Vitality</span>
+                <span className="text-[8px] font-bold text-stone-400 uppercase tracking-wider">{stats.health}% Vitality</span>
               </div>
             </div>
           </div>
-          <button onClick={() => signOut(auth)} className="p-2 text-stone-300 hover:text-stone-600 transition-colors"><LogOut size={16} /></button>
+          <div className="flex items-center gap-2">
+            {googleToken && <div className="hidden md:flex items-center gap-1.5 text-[8px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100"><Link2 size={10} /> Calendar Linked</div>}
+            <button onClick={() => signOut(auth)} className="p-2 text-stone-300 hover:text-stone-600 transition-colors"><LogOut size={16} /></button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 space-y-8">
+      <main className="max-w-7xl mx-auto p-4 md:p-12 space-y-8">
         
         {/* NAV TABS */}
         <div className="flex justify-center gap-2 mb-6">
@@ -428,7 +437,7 @@ export default function App() {
             onDrop={(e) => handleDrop(e, 'inbox')}
           >
             <form onSubmit={addTask} className="relative group">
-              <input autoFocus type="text" placeholder="Drop a thought..." className="w-full px-5 py-3 md:py-4 bg-white border border-stone-200 rounded-xl text-sm md:text-base font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
+              <input autoFocus type="text" placeholder="Capture a seed..." className="w-full px-5 py-3 md:py-4 bg-white border border-stone-200 rounded-xl text-sm md:text-base font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
               <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-700 p-1.5 md:p-2 rounded-lg text-white shadow-md hover:bg-emerald-800 transition-all"><Plus size={18} /></button>
             </form>
             <div className="grid grid-cols-1 gap-2">
@@ -445,9 +454,9 @@ export default function App() {
                 />
               ))}
               {grouped.inbox.length === 0 && (
-                <div className="py-12 text-center text-stone-200 flex flex-col items-center">
+                <div className="py-12 text-center text-stone-200 flex flex-col items-center border-2 border-dashed border-stone-100 rounded-3xl">
                   <Inbox className="mb-2 opacity-10" size={40} />
-                  <p className="text-[10px] font-bold uppercase tracking-widest">Tray Empty</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Earth Awaiting Seeds</p>
                 </div>
               )}
             </div>
@@ -465,9 +474,9 @@ export default function App() {
               >
                 <div className="flex items-center justify-between px-1 mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`${q.color} ${q.bg} p-1.5 rounded-lg shadow-sm`}>{q.icon}</div>
+                    <div className={`${q.color} ${q.bg} p-1.5 rounded-lg shadow-sm border border-stone-100/50`}>{q.icon}</div>
                     <div>
-                      <h2 className="text-[11px] md:text-sm font-bold text-stone-800 uppercase tracking-tighter">{q.name}</h2>
+                      <h2 className="text-[11px] md:text-sm font-bold text-stone-800 uppercase tracking-tighter leading-none">{q.name}</h2>
                       <p className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">{q.desc}</p>
                     </div>
                   </div>
@@ -487,9 +496,6 @@ export default function App() {
                       isSyncing={isSyncing}
                     />
                   ))}
-                  {grouped[q.id].length === 0 && (
-                    <div className="h-12 flex items-center justify-center text-stone-200 text-[8px] font-black uppercase tracking-[0.2em]">Plot Empty</div>
-                  )}
                 </div>
               </div>
             ))}
@@ -498,23 +504,25 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in duration-300">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
               <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
               <StatCard label="Mins" val={tasks.reduce((acc, t) => acc + (t.watered || 0), 0) * sessionMins} icon={<Droplets size={20} className="text-blue-500" />} />
               <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
             </div>
             
-            <div className="bg-white border border-stone-200 rounded-3xl p-6 text-center max-w-md mx-auto">
-               <h3 className="text-sm font-bold text-stone-800 mb-4 uppercase tracking-widest">External Connectivity</h3>
+            <div className="bg-white border border-stone-200 rounded-3xl p-8 text-center max-w-md mx-auto shadow-sm">
+               <h3 className="text-sm font-bold text-stone-800 mb-6 uppercase tracking-widest">External Connectivity</h3>
                <button 
                   onClick={connectGoogle}
-                  className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-stone-900 text-white hover:bg-black'}`}
+                  className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}
                >
-                 <Calendar size={18} />
-                 {googleToken ? 'Google Connected' : 'Connect Google Calendar'}
+                 {isSyncing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Calendar size={18} />}
+                 {googleToken ? 'Connected' : 'Connect Calendar'}
                </button>
-               {!googleToken && <p className="mt-3 text-[10px] text-stone-400 px-4 leading-relaxed">Required to sync the "Schedule" plot to your personal calendar.</p>}
+               {googleError && <p className="mt-4 text-[10px] text-rose-500 font-bold uppercase tracking-tight p-3 bg-rose-50 rounded-lg">{googleError}</p>}
+               {!googleToken && !googleError && <p className="mt-4 text-[10px] text-stone-400 px-4 leading-relaxed uppercase font-medium tracking-wider">Note: Link via your Vercel URL to avoid browser restrictions.</p>}
+               {googleToken && <button onClick={() => setGoogleToken(null)} className="mt-4 text-[9px] text-stone-300 uppercase font-black tracking-widest hover:text-rose-500 transition-colors">Disconnect</button>}
             </div>
           </div>
         )}
@@ -590,7 +598,7 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart
              onClick={onCalendar}
              disabled={isSyncing}
              className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-             title="Schedule on Google Calendar"
+             title="Schedule"
            >
              <Calendar size={14} className={isSyncing ? 'animate-pulse' : ''} />
            </button>
@@ -611,7 +619,7 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart
 
 function StatCard({ label, val, icon }) {
   return (
-    <div className="bg-white border border-stone-200 p-4 md:p-6 rounded-2xl md:rounded-[2rem] text-center shadow-sm">
+    <div className="bg-white border border-stone-200 p-4 md:p-6 rounded-2xl md:rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all">
       <div className="flex justify-center mb-1 md:mb-2 opacity-50">{icon}</div>
       <div className="text-lg md:text-3xl font-black text-stone-800 mb-0.5">{val}</div>
       <div className="text-[8px] md:text-[9px] font-black text-stone-400 uppercase tracking-widest">{label}</div>
