@@ -76,7 +76,7 @@ if (isConfigValid) {
   }
 }
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'eisenhower-v1';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'grove-app-v1';
 
 const QUADRANTS = [
   { 
@@ -123,27 +123,27 @@ const QUADRANTS = [
 
 const PlantGraphic = ({ type, watered, completed }) => {
   const quad = QUADRANTS.find(q => q.id === type) || QUADRANTS[0];
-  const progress = watered / quad.stages;
+  const progress = watered / (quad.stages || 1);
   
   if (type === 'eliminate') {
-    return <Bug className={`w-12 h-12 transition-all ${completed ? 'scale-0 opacity-0' : 'text-zinc-600 animate-pulse'}`} />;
+    return <Bug className={`w-12 h-12 transition-all ${completed ? 'scale-0 opacity-0' : 'text-zinc-400 animate-pulse'}`} />;
   }
 
   return (
     <div className="relative w-16 h-16 flex items-end justify-center">
-      <div className="absolute bottom-0 w-10 h-1.5 bg-black/40 rounded-full blur-md" />
+      <div className="absolute bottom-0 w-10 h-1.5 bg-black/30 rounded-full blur-md" />
       <div className="transition-all duration-700 ease-out flex flex-col items-center"
-           style={{ transform: `scale(${0.5 + (progress * 0.5)})` }}>
+           style={{ transform: `scale(${0.6 + (progress * 0.4)})` }}>
         {watered === 0 && !completed ? (
-          <div className="w-5 h-5 bg-[#3a2a1d] rounded-full border-2 border-white/5 shadow-xl animate-bounce" />
+          <div className="w-5 h-5 bg-[#3a2a1d] rounded-full border-2 border-white/10 shadow-xl animate-bounce" />
         ) : (
           <div className="relative flex flex-col items-center">
             {type === 'schedule' ? (
-              <Trees className={`w-14 h-14 ${completed ? 'text-emerald-200' : 'text-emerald-500'}`} />
+              <Trees className={`w-14 h-14 ${completed ? 'text-emerald-300' : 'text-emerald-500'}`} />
             ) : (
               <Flower2 className={`w-12 h-12 ${completed ? 'text-white' : quad.color === '#F97316' ? 'text-orange-400' : 'text-blue-400'}`} />
             )}
-            <div className="w-1 h-6 bg-emerald-900/40 rounded-full -mt-1" />
+            <div className="w-1 h-6 bg-emerald-900/30 rounded-full -mt-1" />
           </div>
         )}
       </div>
@@ -160,10 +160,14 @@ export default function App() {
   
   const [selectedTask, setSelectedTask] = useState(null);
   const [showPlantingMenu, setShowPlantingMenu] = useState(false);
+  
+  // Timer States
   const [focusTask, setFocusTask] = useState(null);
+  const [sessionMinutes, setSessionMinutes] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
+  // Auth States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState('login'); 
@@ -191,16 +195,28 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
 
+  const startNurture = (task) => {
+    setFocusTask(task);
+    setTimeLeft(sessionMinutes * 60);
+    setIsTimerRunning(true);
+  };
+
+  const changeDuration = (mins) => {
+    setSessionMinutes(mins);
+    if (!isTimerRunning) {
+      setTimeLeft(mins * 60);
+    }
+  };
+
   const completeFocusSession = async () => {
     setIsTimerRunning(false);
-    if (focusTask) {
+    if (focusTask && db) {
       const quad = QUADRANTS.find(q => q.id === focusTask.quadrant);
       const newWatered = (focusTask.watered || 0) + 1;
       const updates = { watered: newWatered };
       if (quad && newWatered >= quad.stages) updates.completed = true;
       await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', focusTask.id), updates);
       setFocusTask(null);
-      setTimeLeft(25 * 60);
     }
   };
 
@@ -270,46 +286,56 @@ export default function App() {
   if (loading) return <LoadingUI />;
 
   if (!user) return (
-    <div className="min-h-screen bg-[#060806] text-white flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-emerald-950/20 to-black pointer-events-none" />
-      <div className="max-w-md w-full bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-10 md:p-14 shadow-2xl z-10">
-        <div className="bg-emerald-600 w-20 h-20 rounded-[2.2rem] flex items-center justify-center shadow-2xl mx-auto mb-10 rotate-3">
-          <Compass className="w-10 h-10 text-white" />
+    <div className="min-h-screen bg-[#1a211a] text-white flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      <div className="max-w-md w-full bg-white/[0.05] backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 md:p-14 shadow-2xl z-10 text-center">
+        <div className="bg-emerald-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl mx-auto mb-8">
+          <Compass className="w-8 h-8 text-white" />
         </div>
-        <h2 className="text-4xl font-black text-center tracking-tighter italic mb-2 uppercase">Priority<span className="text-emerald-500">Grove</span></h2>
-        <p className="text-center text-emerald-500/40 text-[10px] font-black uppercase tracking-[0.4em] mb-12">Eisenhower Strategic Garden</p>
+        <h2 className="text-3xl font-black tracking-tight italic mb-2 uppercase">Priority<span className="text-emerald-500">Grove</span></h2>
+        <p className="text-emerald-500/40 text-[10px] font-black uppercase tracking-widest mb-10">Strategic Task Management</p>
         
         <form onSubmit={handleAuth} className="space-y-4">
-          <input type="email" required placeholder="Gardener Email" className="w-full px-8 py-5 bg-black/40 rounded-3xl border border-white/5 text-white outline-none focus:border-emerald-500 transition-all" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Security Key" className="w-full px-8 py-5 bg-black/40 rounded-3xl border border-white/5 text-white outline-none focus:border-emerald-500 transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {authError && <p className="text-rose-500 text-[10px] font-black text-center uppercase">{authError}</p>}
-          <button type="submit" className="w-full bg-emerald-600 text-white py-5 rounded-3xl font-black shadow-2xl hover:bg-emerald-500 transition-all uppercase tracking-widest text-xs">
-            {authMode === 'login' ? 'Open Gates' : 'Plant Roots'}
+          <input type="email" required placeholder="Email" className="w-full px-6 py-4 bg-black/20 rounded-2xl border border-white/5 text-white outline-none focus:border-emerald-500 transition-all" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Password" className="w-full px-6 py-4 bg-black/20 rounded-2xl border border-white/5 text-white outline-none focus:border-emerald-500 transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
+          {authError && <p className="text-rose-500 text-xs font-bold">{authError}</p>}
+          <button type="submit" className="w-full bg-emerald-600 py-4 rounded-2xl font-black shadow-lg hover:bg-emerald-500 transition-all uppercase tracking-widest text-xs">
+            {authMode === 'login' ? 'Enter Grove' : 'Plant Roots'}
           </button>
         </form>
-        <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="w-full mt-10 text-white/20 text-[10px] font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">
-          {authMode === 'login' ? "New Architect? Register" : "Returning? Access"}
+        <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="mt-8 text-white/40 text-[10px] font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">
+          {authMode === 'login' ? "Register Account" : "Back to Login"}
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#020402] text-white font-sans pb-40 selection:bg-emerald-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-[#121812] text-white font-sans pb-40 overflow-x-hidden selection:bg-emerald-500/30">
       
       {/* IMMERSIVE TIMER */}
       {focusTask && (
-        <div className="fixed inset-0 z-[100] bg-[#020402]/98 backdrop-blur-3xl flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
-           <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.5em] mb-6">Nurturing Focus</div>
-           <h2 className="text-3xl font-black text-center mb-16 italic tracking-tight leading-tight max-w-sm">"{focusTask.text}"</h2>
+        <div className="fixed inset-0 z-[100] bg-[#0a0f0a]/98 backdrop-blur-3xl flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+           <div className="flex gap-4 mb-10">
+              {[15, 25, 45, 60].map(mins => (
+                <button 
+                  key={mins}
+                  onClick={() => changeDuration(mins)}
+                  className={`px-6 py-3 rounded-full text-xs font-black uppercase transition-all ${sessionMinutes === mins ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                >
+                  {mins}m
+                </button>
+              ))}
+           </div>
+
+           <h2 className="text-4xl font-black text-center mb-16 italic tracking-tight leading-tight max-w-md">"{focusTask.text}"</h2>
            
            <div className="relative w-80 h-80 mb-20">
               <svg className="absolute inset-0 w-80 h-80 -rotate-90">
-                <circle cx="160" cy="160" r="145" fill="none" stroke="#0a0f0a" strokeWidth="12" />
-                <circle cx="160" cy="160" r="145" fill="none" stroke="#10b981" strokeWidth="12" strokeLinecap="round" strokeDasharray="911" strokeDashoffset={911 - (911 * (timeLeft / (25 * 60)))} className="transition-all duration-1000 ease-linear" />
+                <circle cx="160" cy="160" r="145" fill="none" stroke="#1c241c" strokeWidth="12" />
+                <circle cx="160" cy="160" r="145" fill="none" stroke="#10b981" strokeWidth="12" strokeLinecap="round" strokeDasharray="911" strokeDashoffset={911 - (911 * (timeLeft / (sessionMinutes * 60)))} className="transition-all duration-1000 ease-linear shadow-[0_0_20px_rgba(16,185,129,0.4)]" />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-8xl font-mono font-black text-white">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+                <span className="text-8xl font-mono font-black">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
               </div>
            </div>
 
@@ -317,31 +343,32 @@ export default function App() {
               <button onClick={() => setIsTimerRunning(!isTimerRunning)} className="w-24 h-24 bg-emerald-600 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-all">
                 {isTimerRunning ? <Pause size={40} /> : <Play size={40} className="ml-2" />}
               </button>
-              <button onClick={() => { setFocusTask(null); setIsTimerRunning(false); setTimeLeft(25 * 60); }} className="w-24 h-24 bg-white/5 border border-white/10 rounded-full flex items-center justify-center active:scale-90 transition-all">
+              <button onClick={() => { setFocusTask(null); setIsTimerRunning(false); }} className="w-24 h-24 bg-white/5 border border-white/10 rounded-full flex items-center justify-center active:scale-90 transition-all">
                 <X size={40} className="text-rose-500" />
               </button>
            </div>
+           <p className="mt-12 text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Nurturing your grove</p>
         </div>
       )}
 
-      {/* QUADRANT SELECTION (SOWER) */}
+      {/* SOWER (PLANNING SHEET) */}
       {showPlantingMenu && (
-        <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-md flex items-end justify-center p-4">
-          <div className="max-w-xl w-full bg-[#0d120d] border border-white/5 rounded-[3.5rem] p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom duration-500">
-            <div className="flex justify-between items-center mb-10">
+        <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-end justify-center p-4">
+          <div className="max-w-xl w-full bg-[#1a211a] border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-start mb-10">
                <div>
-                 <h3 className="text-3xl font-black italic tracking-tighter">Strategic Planting</h3>
-                 <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.3em] mt-2 italic">"{selectedTask?.text}"</p>
+                  <h3 className="text-3xl font-black italic tracking-tighter uppercase">Plan Growth</h3>
+                  <p className="text-white/30 text-[10px] font-black uppercase tracking-widest mt-1 italic">"{selectedTask?.text}"</p>
                </div>
                <button onClick={() => setShowPlantingMenu(false)} className="p-4 bg-white/5 rounded-full text-white/30"><X size={20} /></button>
             </div>
-            <div className="grid grid-cols-1 gap-4 mb-4">
+            <div className="grid grid-cols-1 gap-3">
                {QUADRANTS.map(q => (
-                 <button key={q.id} onClick={() => setTaskQuadrant(q.id)} className={`group flex items-center gap-6 p-6 rounded-3xl border transition-all ${q.bg} border-white/10 hover:scale-[1.02] active:scale-95`}>
-                    <div className="bg-white/20 p-4 rounded-2xl text-white">{q.icon}</div>
+                 <button key={q.id} onClick={() => setTaskQuadrant(q.id)} className={`group flex items-center gap-6 p-6 rounded-3xl border transition-all ${q.bg} border-white/10 hover:scale-[1.02] active:scale-95 shadow-xl`}>
+                    <div className="bg-white/20 p-4 rounded-2xl text-white shadow-inner">{q.icon}</div>
                     <div className="text-left flex-1">
                        <div className="text-xl font-black text-white leading-none mb-1">{q.name}</div>
-                       <div className="text-[10px] font-black uppercase text-white/60 tracking-widest">{q.matrix} • {q.action}</div>
+                       <div className="text-[10px] font-black uppercase text-white/70 tracking-widest">{q.matrix} • {q.action}</div>
                     </div>
                  </button>
                ))}
@@ -350,20 +377,20 @@ export default function App() {
         </div>
       )}
 
-      {/* HUD HEADER */}
-      <header className="sticky top-0 z-40 bg-[#020402]/80 backdrop-blur-2xl border-b border-white/5 px-6 py-6">
+      {/* HEADER */}
+      <header className="sticky top-0 z-40 bg-[#121812]/90 backdrop-blur-xl border-b border-white/5 px-6 py-6">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-5">
             <div className="bg-emerald-600 p-3 rounded-[1.2rem] text-white shadow-xl rotate-3">
               <Compass size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter italic uppercase">Priority<span className="text-emerald-500">Grove</span></h1>
-              <div className="flex items-center gap-3">
-                <div className="w-28 h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                  <div className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${groveVitality}%` }} />
+              <h1 className="text-2xl font-black tracking-tighter italic uppercase leading-none">Priority<span className="text-emerald-500">Grove</span></h1>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${groveVitality}%` }} />
                 </div>
-                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{groveVitality}% VITALITY</span>
+                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{groveVitality}% VITALITY</span>
               </div>
             </div>
           </div>
@@ -372,19 +399,23 @@ export default function App() {
       </header>
 
       <main className="max-w-5xl mx-auto p-4 md:p-10">
+        
+        {/* TABS */}
         <div className="flex bg-white/5 p-1.5 rounded-[2.5rem] mb-12 border border-white/5 max-w-sm mx-auto shadow-2xl relative">
           <TabBtn active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} icon={<Inbox size={20} />} label="Tray" />
           <TabBtn active={activeTab === 'garden'} onClick={() => setActiveTab('garden')} icon={<Trees size={20} />} label="Grove" />
           <TabBtn active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<Trophy size={20} />} label="Legacy" />
-          <div className="absolute bottom-1.5 h-1 bg-emerald-500 rounded-full transition-all duration-500" style={{ width: 'calc(33.33% - 10px)', left: activeTab === 'inbox' ? '5px' : activeTab === 'garden' ? 'calc(33.33% + 5px)' : 'calc(66.66% + 5px)' }} />
+          <div className="absolute bottom-1.5 h-1 bg-emerald-500 rounded-full transition-all duration-500 ease-out" 
+               style={{ width: 'calc(33.33% - 10px)', left: activeTab === 'inbox' ? '5px' : activeTab === 'garden' ? 'calc(33.33% + 5px)' : 'calc(66.66% + 5px)' }} />
         </div>
 
         <div className="animate-in fade-in slide-in-from-bottom-10 duration-700">
+          
           {activeTab === 'inbox' && (
             <div className="max-w-2xl mx-auto space-y-10">
               <form onSubmit={addTask} className="relative group">
-                <input autoFocus type="text" placeholder="Drop a thought... #priority" className="w-full px-10 py-10 bg-white/5 border border-white/10 rounded-[3.5rem] text-2xl font-black italic text-white placeholder:text-white/5 outline-none focus:border-emerald-500 focus:bg-white/10 transition-all shadow-2xl" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} />
-                <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 bg-emerald-600 p-5 rounded-[2.2rem] text-white shadow-2xl active:scale-90 transition-all"><Plus size={32} /></button>
+                <input autoFocus type="text" placeholder="What seed will you sow?" className="w-full px-10 py-10 bg-white/5 border border-white/10 rounded-[3.5rem] text-3xl font-black italic text-white placeholder:text-white/5 outline-none focus:border-emerald-500 focus:bg-white/10 transition-all shadow-2xl" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} />
+                <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 bg-emerald-600 p-5 rounded-[2.2rem] text-white shadow-2xl active:scale-90 transition-all"><Plus size={36} /></button>
               </form>
               <div className="grid grid-cols-1 gap-6">
                 {grouped.inbox.map(task => (
@@ -393,7 +424,7 @@ export default function App() {
                 {grouped.inbox.length === 0 && (
                   <div className="py-40 text-center opacity-10 flex flex-col items-center">
                     <Sparkles className="w-24 h-24 mb-6" />
-                    <p className="text-xl font-black italic tracking-[0.5em] uppercase">Tray is Clear</p>
+                    <p className="text-xl font-black italic tracking-[0.5em] uppercase text-emerald-100">Seed Tray is Clear</p>
                   </div>
                 )}
               </div>
@@ -401,25 +432,34 @@ export default function App() {
           )}
 
           {activeTab === 'garden' && (
-            <div className="space-y-24">
+            <div className="space-y-28">
               {QUADRANTS.map(q => (
                 <div key={q.id} className="space-y-10 animate-in fade-in duration-1000">
                   <div className="flex items-center gap-6 px-4">
-                    <div className={`p-3 rounded-2xl ${q.bg} text-white shadow-xl`}>{q.icon}</div>
+                    <div className={`p-4 rounded-[1.2rem] ${q.bg} text-white shadow-2xl`}>{q.icon}</div>
                     <div>
-                      <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">{q.name} PLOT</h2>
-                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mt-1">{q.matrix}</p>
+                      <h2 className="text-4xl font-black italic tracking-tighter uppercase leading-none">{q.name} PLOT</h2>
+                      <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/30 mt-2">{q.matrix}</p>
                     </div>
                     <div className="h-[1px] flex-1 bg-white/5" />
-                    <span className="text-[10px] font-black text-emerald-500 uppercase">{grouped[q.id].length} Rooted</span>
+                    <span className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-3 py-1.5 rounded-full">{grouped[q.id].length} Growth</span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     {grouped[q.id].map(task => (
-                      <StrategicCard key={task.id} task={task} onFocus={() => { setFocusTask(task); setTimeLeft(25 * 60); setIsTimerRunning(true); }} onComplete={() => toggleTask(task)} onAction={() => { setSelectedTask(task); setShowPlantingMenu(true); }} onDelete={() => deleteTask(task.id)} />
+                      <StrategicCard 
+                        key={task.id} 
+                        task={task} 
+                        onNurture={() => startNurture(task)} 
+                        onComplete={() => toggleTask(task)} 
+                        onAction={() => { setSelectedTask(task); setShowPlantingMenu(true); }} 
+                        onDelete={() => deleteTask(task.id)} 
+                      />
                     ))}
                     {grouped[q.id].length === 0 && (
-                      <div className="col-span-full h-40 border-2 border-dashed border-white/5 rounded-[3.5rem] flex items-center justify-center text-white/10 uppercase font-black text-[10px] tracking-widest">Earth Awaiting {q.name}</div>
+                      <div className="col-span-full h-48 border-2 border-dashed border-white/5 rounded-[4rem] flex flex-col items-center justify-center text-white/5 uppercase font-black text-xs tracking-[0.3em]">
+                        Earth Awaiting {q.name} Seeds
+                      </div>
                     )}
                   </div>
                 </div>
@@ -428,34 +468,32 @@ export default function App() {
           )}
 
           {activeTab === 'profile' && (
-             <div className="max-w-2xl mx-auto bg-white/5 rounded-[4rem] p-16 border border-white/5 text-center shadow-2xl relative overflow-hidden">
+             <div className="max-w-2xl mx-auto bg-white/5 rounded-[4rem] p-16 border border-white/10 text-center shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-emerald-500 to-blue-500" />
                <div className="w-32 h-32 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 border border-white/10 shadow-inner">
-                 <Trophy size={48} className="text-amber-500" />
+                 <Trophy size={64} className="text-amber-500" />
                </div>
-               <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">{user.email?.split('@')[0]}</h2>
-               <p className="text-emerald-500/40 text-[10px] font-black uppercase tracking-[0.5em] mb-16 underline underline-offset-8">Grove Records</p>
+               <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2">{user.email?.split('@')[0]}'s Legacy</h2>
+               <p className="text-emerald-500/40 text-[11px] font-black uppercase tracking-[0.5em] mb-16 underline underline-offset-8 decoration-emerald-900">Grove Records</p>
                <div className="grid grid-cols-2 gap-8 text-left">
-                  <StatItem label="Grown" val={tasks.filter(t => t.completed).length} color="text-emerald-400" />
-                  <StatItem label="Nurturing" val={tasks.filter(t => !t.completed).length} color="text-amber-400" />
-                  <StatItem label="Focus Acts" val={tasks.reduce((a, t) => a + (t.watered || 0), 0)} color="text-blue-400" />
-                  <StatItem label="Vitality" val={groveVitality + "%"} color="text-orange-400" />
+                  <StatBox label="Harvested" val={tasks.filter(t => t.completed).length} color="text-emerald-400" />
+                  <StatBox label="Nurturing" val={tasks.filter(t => !t.completed).length} color="text-orange-400" />
+                  <StatBox label="Focus Acts" val={tasks.reduce((a, t) => a + (t.watered || 0), 0)} color="text-blue-400" />
+                  <StatBox label="Vitality" val={groveVitality + "%"} color="text-white" />
                </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* MOBILE NAV BAR */}
-      <div className="fixed bottom-0 left-0 right-0 p-8 z-40 pointer-events-none">
-        <div className="max-w-md mx-auto pointer-events-auto">
-          <div className="bg-[#0a120a]/90 backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-4 flex justify-between items-center shadow-2xl">
-             <button onClick={() => setActiveTab('inbox')} className={`p-5 rounded-full transition-all ${activeTab === 'inbox' ? 'bg-emerald-600 text-white' : 'text-white/20'}`}><Inbox size={24} /></button>
-             <button onClick={() => setActiveTab('garden')} className={`p-5 rounded-full transition-all ${activeTab === 'garden' ? 'bg-emerald-600 text-white' : 'text-white/20'}`}><LayoutGrid size={24} /></button>
-             <button onClick={() => setActiveTab('profile')} className={`p-5 rounded-full transition-all ${activeTab === 'profile' ? 'bg-emerald-600 text-white' : 'text-white/20'}`}><Settings size={24} /></button>
-          </div>
+      {/* FIXED MOBILE NAVIGATION */}
+      <nav className="fixed bottom-10 left-0 right-0 px-8 z-40 pointer-events-none">
+        <div className="max-w-md mx-auto pointer-events-auto bg-[#1a211a]/95 backdrop-blur-3xl border border-white/10 rounded-[3.5rem] p-4 flex justify-between items-center shadow-[0_20px_80px_rgba(0,0,0,0.6)]">
+           <NavIcon active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} icon={<Inbox size={26} />} />
+           <NavIcon active={activeTab === 'garden'} onClick={() => setActiveTab('garden')} icon={<LayoutGrid size={26} />} />
+           <NavIcon active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<Settings size={26} />} />
         </div>
-      </div>
+      </nav>
     </div>
   );
 }
@@ -464,39 +502,43 @@ function TabBtn({ active, onClick, icon, label }) {
   return (
     <button onClick={onClick} className={`flex-1 flex flex-col items-center gap-1.5 py-6 rounded-[2.2rem] transition-all relative z-10 ${active ? 'text-white' : 'text-white/20 hover:text-white/40'}`}>
       {icon}
-      <span className={`text-[10px] font-black uppercase tracking-widest transition-opacity ${active ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
+      <span className={`text-[9px] font-black uppercase tracking-widest ${active ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
     </button>
   );
 }
 
-function StatItem({ label, val, color }) {
+function NavIcon({ active, onClick, icon }) {
+  return (
+    <button onClick={onClick} className={`p-5 rounded-full transition-all duration-300 ${active ? 'bg-emerald-600 text-white shadow-2xl scale-110' : 'text-white/20 hover:bg-white/5'}`}>{icon}</button>
+  );
+}
+
+function StatBox({ label, val, color }) {
   return (
     <div className="bg-black/30 p-8 rounded-[3rem] border border-white/5">
-      <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">{label}</p>
-      <p className={`text-4xl font-black italic tracking-tighter ${color}`}>{val}</p>
+      <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1">{label}</p>
+      <p className={`text-5xl font-black italic tracking-tighter ${color}`}>{val}</p>
     </div>
   );
 }
 
-function StrategicCard({ task, onFocus, onComplete, onAction, onDelete, isInbox = false }) {
-  const quad = QUADRANTS.find(q => q.id === task.quadrant) || { name: 'Seed', stages: 1, matrix: 'Unplanted' };
+function StrategicCard({ task, onNurture, onComplete, onAction, onDelete, isInbox = false }) {
+  const quad = QUADRANTS.find(q => q.id === task.quadrant) || { name: 'Seed', stages: 1, color: '#fff' };
   
   return (
-    <div className={`group bg-[#0d120d] border border-white/5 rounded-[4rem] p-10 flex flex-col gap-10 transition-all hover:bg-[#121812] hover:border-white/10 ${task.completed ? 'opacity-20 grayscale pointer-events-none' : 'shadow-2xl shadow-black/40'}`}>
+    <div className={`group bg-[#1e271e] border border-white/5 rounded-[4rem] p-10 flex flex-col gap-10 transition-all hover:bg-[#253025] hover:border-white/10 ${task.completed ? 'opacity-20 grayscale pointer-events-none' : 'shadow-2xl shadow-black/60'}`}>
       <div className="flex items-center gap-10">
-        <div className="shrink-0">
-          <PlantGraphic type={task.quadrant} watered={task.watered || 0} completed={task.completed} />
-        </div>
+        <PlantGraphic type={task.quadrant} watered={task.watered || 0} completed={task.completed} />
         <div className="grow overflow-hidden">
           <span className="text-3xl font-black italic tracking-tight text-white leading-tight block mb-4 truncate">{task.text}</span>
           <div className="flex items-center gap-4">
-             <div className="px-5 py-2 bg-black/40 rounded-2xl border border-white/5 text-[10px] font-black uppercase tracking-widest text-emerald-500">
-               {isInbox ? 'Unplanted Seed' : quad.name} • {quad.matrix}
+             <div className="px-4 py-2 bg-black/40 rounded-xl border border-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">
+               {isInbox ? 'Unplanted' : quad.name}
              </div>
              {!task.completed && task.quadrant !== 'eliminate' && task.quadrant !== 'inbox' && (
                 <div className="flex gap-2.5 ml-auto">
                    {[...Array(quad.stages || 1)].map((_, i) => (
-                      <div key={i} className={`w-3 h-3 rounded-full ${i < (task.watered || 0) ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)]' : 'bg-white/5 border border-white/10'}`} />
+                      <div key={i} className={`w-3 h-3 rounded-full ${i < (task.watered || 0) ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)]' : 'bg-[#121812]'}`} />
                    ))}
                 </div>
              )}
@@ -506,14 +548,14 @@ function StrategicCard({ task, onFocus, onComplete, onAction, onDelete, isInbox 
 
       <div className="flex gap-4">
         {task.quadrant !== 'inbox' && !task.completed && task.quadrant !== 'eliminate' && (
-          <button onClick={onFocus} className="flex-1 bg-emerald-600 text-white py-7 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3"><Timer size={24} /> Focus Nurture</button>
+          <button onClick={onNurture} className="flex-1 bg-emerald-600 text-white py-8 rounded-[2.5rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4"><Timer size={24} /> Nurture</button>
         )}
         {task.quadrant === 'inbox' && (
-          <button onClick={onAction} className="flex-1 bg-orange-600 text-white py-7 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3"><Sprout size={24} /> Plant Seed</button>
+          <button onClick={onAction} className="flex-1 bg-orange-600 text-white py-8 rounded-[2.5rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4"><Sprout size={24} /> Plant Seed</button>
         )}
-        <button onClick={onAction} className="p-7 bg-white/5 rounded-3xl text-white/40 hover:text-white transition-all"><Settings size={24} /></button>
-        <button onClick={onComplete} className="p-7 bg-white/5 rounded-3xl text-white/40 hover:text-emerald-500 transition-all"><CheckCircle2 size={24} /></button>
-        <button onClick={onDelete} className="p-7 bg-rose-500/10 text-rose-500 rounded-3xl border border-rose-500/10 active:scale-90 transition-all"><Trash2 size={24} /></button>
+        <button onClick={onAction} className="p-8 bg-white/5 rounded-[2.2rem] text-white/30 hover:text-white transition-all"><Settings size={24} /></button>
+        <button onClick={onComplete} className="p-8 bg-white/5 rounded-[2.2rem] text-white/30 hover:text-emerald-500 transition-all"><CheckCircle2 size={28} /></button>
+        <button onClick={onDelete} className="p-8 bg-rose-500/10 text-rose-500 rounded-[2.2rem] border border-rose-500/10 active:scale-90 transition-all"><Trash2 size={24} /></button>
       </div>
     </div>
   );
@@ -521,19 +563,19 @@ function StrategicCard({ task, onFocus, onComplete, onAction, onDelete, isInbox 
 
 function LoadingUI() {
   return (
-    <div className="h-screen bg-[#020402] flex items-center justify-center">
-      <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin shadow-[0_0_60px_rgba(16,185,129,0.2)]" />
+    <div className="h-screen bg-[#121812] flex items-center justify-center">
+      <div className="w-20 h-20 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin shadow-[0_0_60px_rgba(16,185,129,0.3)]" />
     </div>
   );
 }
 
 function SetupUI() {
   return (
-    <div className="min-h-screen bg-[#020402] flex items-center justify-center p-10">
-      <div className="max-w-md w-full bg-white/5 border border-rose-900/30 rounded-[4rem] p-16 text-center">
-        <AlertCircle size={64} className="text-rose-500 mx-auto mb-10" />
-        <h2 className="text-3xl font-black italic text-white mb-6 uppercase">Vault Locked</h2>
-        <p className="text-white/30 text-xs uppercase tracking-widest leading-relaxed">System Architecture requires Firebase Keys in App.jsx.</p>
+    <div className="min-h-screen bg-[#121812] flex items-center justify-center p-12">
+      <div className="max-w-md w-full bg-white/5 border border-rose-950/40 rounded-[4rem] p-16 text-center shadow-2xl">
+        <AlertCircle size={80} className="text-rose-500 mx-auto mb-10" />
+        <h2 className="text-3xl font-black italic text-white mb-6 uppercase tracking-tighter">Vault Locked</h2>
+        <p className="text-white/30 text-xs leading-relaxed uppercase tracking-widest font-bold">Priority Grove System requires Firebase credentials in App.jsx (Lines 34-45).</p>
       </div>
     </div>
   );
