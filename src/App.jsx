@@ -320,12 +320,6 @@ export default function App() {
     return { total, done, health };
   }, [tasks]);
 
-  const grouped = useMemo(() => {
-    const b = { inbox: [], do: [], schedule: [], delegate: [], eliminate: [] };
-    tasks.forEach(t => { if (b[t.quadrant]) b[t.quadrant].push(t); });
-    return b;
-  }, [tasks]);
-
   const handleDragStart = (e, taskId) => {
     setDraggedId(taskId);
     e.dataTransfer.setData('taskId', taskId);
