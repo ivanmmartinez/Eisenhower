@@ -263,6 +263,11 @@ export default function App() {
     setDraggedId(null);
   };
 
+  const setDueDate = async (taskId, date) => {
+    if (!db) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), { dueDate: date });
+  };
+
   const toggleComplete = async (task) => {
     if (!db) return;
     const quad = QUADRANTS.find(q => q.id === task.quadrant);
@@ -273,11 +278,41 @@ export default function App() {
     });
   };
 
+  const archiveTask = async (taskId) => {
+    if (!db) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), { archived: true });
+  };
+
+  const archiveAllCompleted = async () => {
+    if (!db) return;
+    const batch = tasks.filter(t => t.completed && !t.archived);
+    for (const task of batch) {
+      await archiveTask(task.id);
+    }
+  };
+  
   const deleteTask = async (id) => {
     if (!db) return;
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', id));
   };
 
+  // --- SMART SORTING & GROUPING ---
+  const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks]);
+  
+  const grouped = useMemo(() => {
+    const b = { inbox: [], do: [], schedule: [], delegate: [], eliminate: [] };
+    activeTasks.forEach(t => { if (b[t.quadrant]) b[t.quadrant].push(t); });
+    
+    // Within each group: Completed tasks at the bottom, otherwise sort by newest
+    Object.keys(b).forEach(key => {
+      b[key].sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        return b.createdAt - a.createdAt;
+      });
+    });
+    return b;
+  }, [activeTasks]);
+  
   const stats = useMemo(() => {
     const total = tasks.length;
     const done = tasks.filter(t => t.completed).length;
@@ -323,8 +358,8 @@ export default function App() {
             else await createUserWithEmailAndPassword(auth, email, password);
           } catch (err) { setAuthError(err.message); }
         }} className="space-y-3">
-          <input type="email" required placeholder="Gardener Email" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Secret Key" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+          <input type="email" required placeholder="Email" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Password" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
           {authError && <p className="text-rose-600 text-[10px] font-bold uppercase">{authError}</p>}
           <button type="submit" className="w-full bg-emerald-800 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition-all shadow-md text-sm uppercase tracking-widest">
             {authMode === 'login' ? 'Enter Grove' : 'Plant Roots'}
