@@ -21,7 +21,7 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { 
-  Plus, Trash2, CheckCircle2, Zap, Clock, Users, Inbox, LogOut, Sprout, Flower2, Trees, Trophy, Play, Pause, X, Bug, LayoutGrid, Settings, AlertCircle, GripVertical, Calendar, Link2, Archive, BarChart3, Flame, ChevronLeft, ChevronRight, Shield, RotateCcw
+  Plus, Trash2, CheckCircle2, Zap, Clock, Users, Inbox, LogOut, Sprout, Flower2, Trophy, Play, Pause, X, Bug, LayoutGrid, Settings, AlertCircle, GripVertical, Calendar, Link2, Archive, Flame, ChevronLeft, ChevronRight, Shield, RotateCcw
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -909,10 +909,7 @@ export default function App() {
         <div className="flex justify-center gap-2 mb-6 flex-wrap">
           <TabButton active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} label="Tray" />
           <TabButton active={activeTab === 'garden'} onClick={() => setActiveTab('garden')} label="Garden" />
-          <TabButton active={activeTab === 'scene'} onClick={() => setActiveTab('scene')} label="Scene" />
-          <TabButton active={activeTab === 'almanac'} onClick={() => setActiveTab('almanac')} label="Almanac" />
           <TabButton active={activeTab === 'shed'} onClick={() => setActiveTab('shed')} label="Shed" />
-          <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Legacy" />
         </div>
 
         {activeTab === 'inbox' && (
@@ -973,125 +970,37 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'scene' && <GardenScene tasks={activeTasks} />}
-        {activeTab === 'almanac' && <Almanac user={user} tasks={tasks} />}
-        
         {activeTab === 'shed' && (
-          <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-300">
-            <div className="text-center mb-8">
-              <Archive size={32} className="text-stone-400 mx-auto mb-2" />
-              <h2 className="text-sm font-bold uppercase tracking-widest text-stone-600">The Shed</h2>
-              <p className="text-[10px] text-stone-400 italic mt-1">{archivedTasks.length} preserved memories</p>
-            </div>
-            <div className="space-y-2">
-              {archivedTasks.length === 0 ? (
-                <div className="py-12 text-center text-stone-200 flex flex-col items-center border-2 border-dashed border-stone-100 rounded-3xl">
-                  <Archive className="mb-2 opacity-10" size={40} />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Shed Is Empty</p>
-                </div>
-              ) : archivedTasks.map(task => (
-                <div key={task.id} className="bg-white border border-stone-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                  <div className="w-10 h-10 bg-stone-50 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                    <BloomVisualization plantId={task.plantId || 'lotus'} progress={1} />
-                  </div>
-                  <div className="grow">
-                    <h3 className="text-sm font-semibold text-stone-700 leading-tight">{task.text}</h3>
-                    <p className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">
-                      {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : 'archived'} · {PLANTS.find(p => p.id === task.plantId)?.name || 'Lotus'}
-                    </p>
-                  </div>
-                  <button onClick={() => unarchiveTask(task.id)} title="Restore" className="p-2 bg-stone-50 text-stone-400 rounded-lg hover:text-emerald-600 transition-colors"><RotateCcw size={14} /></button>
-                  <button onClick={() => { if(confirm('Permanently delete?')) deleteTask(task.id) }} className="p-2 bg-stone-50 text-stone-300 rounded-lg hover:text-rose-500 transition-all"><Trash2 size={14} /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'profile' && (
-          <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in duration-300">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
-              <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
-              <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
-            </div>
-            <div className="bg-white border border-stone-200 rounded-3xl p-8 text-center max-w-md mx-auto shadow-sm">
-               <h3 className="text-sm font-bold text-stone-800 mb-6 uppercase tracking-widest">Ecosystem Tools</h3>
-               <div className="flex flex-col gap-3">
-                 <button onClick={archiveAllCompleted} className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100"><Archive size={18} /> Archive All Completed</button>
-                 <button onClick={connectGoogle} className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}><Calendar size={18} /> {googleToken ? 'Connected' : 'Connect Calendar'}</button>
-               </div>
-               {googleError && <p className="mt-4 text-[10px] text-rose-500 font-bold uppercase tracking-tight p-3 bg-rose-50 rounded-lg">{googleError}</p>}
-            </div>
-          </div>
+          <Shed 
+            user={user} 
+            tasks={tasks} 
+            archivedTasks={archivedTasks} 
+            stats={stats}
+            onUnarchive={unarchiveTask} 
+            onDelete={deleteTask}
+            onArchiveAllCompleted={archiveAllCompleted}
+            onConnectGoogle={connectGoogle}
+            googleToken={googleToken}
+            googleError={googleError}
+          />
         )}
       </main>
 
       <nav className="fixed bottom-4 left-0 right-0 px-4 z-40 md:hidden pointer-events-none">
-        <div className="max-w-sm mx-auto bg-white/90 backdrop-blur-md border border-stone-200 rounded-2xl p-1 flex justify-between shadow-xl pointer-events-auto">
-          <NavIcon active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} icon={<Inbox size={18} />} />
-          <NavIcon active={activeTab === 'garden'} onClick={() => setActiveTab('garden')} icon={<LayoutGrid size={18} />} />
-          <NavIcon active={activeTab === 'scene'} onClick={() => setActiveTab('scene')} icon={<Flower2 size={18} />} />
-          <NavIcon active={activeTab === 'almanac'} onClick={() => setActiveTab('almanac')} icon={<BarChart3 size={18} />} />
-          <NavIcon active={activeTab === 'shed'} onClick={() => setActiveTab('shed')} icon={<Archive size={18} />} />
-          <NavIcon active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<Trophy size={18} />} />
+        <div className="max-w-xs mx-auto bg-white/90 backdrop-blur-md border border-stone-200 rounded-2xl p-1 flex justify-between shadow-xl pointer-events-auto">
+          <NavIcon active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} icon={<Inbox size={20} />} />
+          <NavIcon active={activeTab === 'garden'} onClick={() => setActiveTab('garden')} icon={<LayoutGrid size={20} />} />
+          <NavIcon active={activeTab === 'shed'} onClick={() => setActiveTab('shed')} icon={<Archive size={20} />} />
         </div>
       </nav>
     </div>
   );
 }
 
-// --- GARDEN SCENE VIEW ---
-function GardenScene({ tasks }) {
-  const active = tasks.filter(t => !t.archived && t.quadrant !== 'inbox');
-  return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div className="bg-gradient-to-b from-sky-50 via-emerald-50 to-amber-50 rounded-3xl p-6 md:p-10 min-h-[500px] relative overflow-hidden shadow-inner border border-stone-200">
-        {/* Sun */}
-        <div className="absolute top-6 right-8 w-16 h-16 bg-amber-200 rounded-full blur-xl opacity-60" />
-        <div className="absolute top-8 right-10 w-12 h-12 bg-amber-300 rounded-full opacity-80" />
-        
-        <h2 className="text-sm font-black uppercase tracking-widest text-stone-600 mb-6 relative z-10">Your Grove</h2>
-        
-        {active.length === 0 ? (
-          <div className="text-center py-20 text-stone-400">
-            <Sprout size={48} className="mx-auto mb-2 opacity-30" />
-            <p className="text-xs font-bold uppercase tracking-widest">Plant a task to see your grove grow</p>
-          </div>
-        ) : (
-          <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {active.map(task => {
-              const quad = QUADRANTS.find(q => q.id === task.quadrant);
-              const progress = task.completed ? 1 : Math.min(1, (task.watered || 0) / (quad?.stages || 1));
-              return (
-                <div key={task.id} className="bg-white/60 backdrop-blur-sm rounded-2xl p-3 border border-white shadow-sm hover:shadow-md transition-all">
-                  <div className="aspect-square bg-gradient-to-b from-sky-100 to-emerald-100 rounded-xl mb-2 overflow-hidden relative">
-                    <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-amber-200 to-transparent" />
-                    <div className="absolute inset-0">
-                      <BloomVisualization plantId={task.plantId || 'lotus'} progress={progress} />
-                    </div>
-                  </div>
-                  <p className="text-xs font-semibold text-stone-700 truncate">{task.text}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className={`w-1.5 h-1.5 rounded-full ${quad?.color.replace('text-', 'bg-') || 'bg-stone-400'}`} />
-                    <p className="text-[9px] text-stone-400 uppercase tracking-wider font-medium">{quad?.name || 'Seed'}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        
-        {/* Ground */}
-        <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-amber-900/20 to-transparent" />
-      </div>
-    </div>
-  );
-}
-
-// --- ALMANAC (insights) ---
-function Almanac({ user, tasks }) {
+// --- SHED (archive + insights + tools) ---
+function Shed({ user, tasks, archivedTasks, stats, onUnarchive, onDelete, onArchiveAllCompleted, onConnectGoogle, googleToken, googleError }) {
   const [sessions, setSessions] = useState([]);
+  const [view, setView] = useState('archive');
   
   useEffect(() => {
     if (!user || !db) return;
@@ -1099,18 +1008,12 @@ function Almanac({ user, tasks }) {
     return onSnapshot(q, (s) => setSessions(s.docs.map(d => ({ id: d.id, ...d.data() }))));
   }, [user]);
 
-  // Completion streak calculation
   const streaks = useMemo(() => {
     const completed = tasks.filter(t => t.completedAt).map(t => new Date(t.completedAt).toDateString());
     const uniqueDays = [...new Set(completed)].sort((a,b) => new Date(b) - new Date(a));
-    
-    let current = 0;
-    let longest = 0;
-    let running = 0;
+    let current = 0, longest = 0, running = 0;
     const today = new Date().toDateString();
     const yesterday = new Date(Date.now() - 86400000).toDateString();
-    
-    // current streak
     if (uniqueDays.includes(today) || uniqueDays.includes(yesterday)) {
       let checkDate = uniqueDays.includes(today) ? today : yesterday;
       for (const day of uniqueDays) {
@@ -1120,8 +1023,6 @@ function Almanac({ user, tasks }) {
         } else break;
       }
     }
-    
-    // longest streak
     for (let i = 0; i < uniqueDays.length; i++) {
       if (i === 0) { running = 1; continue; }
       const diff = (new Date(uniqueDays[i-1]) - new Date(uniqueDays[i])) / 86400000;
@@ -1129,11 +1030,9 @@ function Almanac({ user, tasks }) {
       else { longest = Math.max(longest, running); running = 1; }
     }
     longest = Math.max(longest, running);
-    
     return { current, longest, totalDays: uniqueDays.length };
   }, [tasks]);
 
-  // Time-of-day heatmap
   const hourData = useMemo(() => {
     const hours = Array(24).fill(0);
     sessions.forEach(s => { if (typeof s.hour === 'number') hours[s.hour]++; });
@@ -1144,14 +1043,12 @@ function Almanac({ user, tasks }) {
     return hours;
   }, [sessions, tasks]);
 
-  // Growth timeline (blooms per week, last 12 weeks)
   const timeline = useMemo(() => {
     const weeks = Array(12).fill(0).map((_, i) => {
       const end = Date.now() - i * 7 * 86400000;
       const start = end - 7 * 86400000;
       return { label: `W-${11-i}`, start, end, count: 0 };
     }).reverse();
-    
     tasks.filter(t => t.completedAt).forEach(t => {
       const week = weeks.find(w => t.completedAt >= w.start && t.completedAt < w.end);
       if (week) week.count++;
@@ -1163,66 +1060,114 @@ function Almanac({ user, tasks }) {
   const maxHour = Math.max(1, ...hourData);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="text-center mb-6">
-        <BarChart3 size={32} className="text-emerald-600 mx-auto mb-2" />
-        <h2 className="text-sm font-bold uppercase tracking-widest text-stone-600">Almanac</h2>
-        <p className="text-[10px] text-stone-400 italic mt-1">Patterns in your grove</p>
+    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+      <div className="text-center mb-4">
+        <Archive size={32} className="text-stone-400 mx-auto mb-2" />
+        <h2 className="text-sm font-bold uppercase tracking-widest text-stone-600">The Shed</h2>
+        <p className="text-[10px] text-stone-400 italic mt-1">Your grove's memory</p>
       </div>
 
-      {/* Streak cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
-          <Flame size={20} className="text-amber-500 mx-auto mb-1" />
-          <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.current}</div>
-          <div className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">Current Streak</div>
-        </div>
-        <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
-          <Trophy size={20} className="text-emerald-600 mx-auto mb-1" />
-          <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.longest}</div>
-          <div className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">Longest Streak</div>
-        </div>
-        <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
-          <Calendar size={20} className="text-blue-500 mx-auto mb-1" />
-          <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.totalDays}</div>
-          <div className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">Active Days</div>
-        </div>
+      {/* Sub-tabs */}
+      <div className="flex justify-center gap-2 mb-4">
+        <button onClick={() => setView('archive')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all ${view === 'archive' ? 'bg-stone-800 text-white' : 'bg-white text-stone-400 border border-stone-200'}`}>Archive</button>
+        <button onClick={() => setView('insights')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all ${view === 'insights' ? 'bg-stone-800 text-white' : 'bg-white text-stone-400 border border-stone-200'}`}>Insights</button>
+        <button onClick={() => setView('tools')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all ${view === 'tools' ? 'bg-stone-800 text-white' : 'bg-white text-stone-400 border border-stone-200'}`}>Tools</button>
       </div>
 
-      {/* Growth timeline */}
-      <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">Garden Growth · Last 12 Weeks</h3>
-        <div className="flex items-end gap-1 md:gap-2 h-32">
-          {timeline.map((w, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t transition-all hover:from-emerald-700" style={{ height: `${(w.count / maxWeek) * 100}%`, minHeight: w.count > 0 ? '4px' : '0' }} title={`${w.count} blooms`} />
-              <div className="text-[8px] text-stone-400 font-bold">{w.count}</div>
+      {view === 'archive' && (
+        <div className="space-y-2 max-w-3xl mx-auto">
+          <p className="text-[10px] text-stone-400 text-center italic mb-4">{archivedTasks.length} preserved memories</p>
+          {archivedTasks.length === 0 ? (
+            <div className="py-12 text-center text-stone-200 flex flex-col items-center border-2 border-dashed border-stone-100 rounded-3xl">
+              <Archive className="mb-2 opacity-10" size={40} />
+              <p className="text-[10px] font-black uppercase tracking-widest">Shed Is Empty</p>
+            </div>
+          ) : archivedTasks.map(task => (
+            <div key={task.id} className="bg-white border border-stone-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+              <div className="w-10 h-10 bg-stone-50 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                <BloomVisualization plantId={task.plantId || 'lotus'} progress={1} />
+              </div>
+              <div className="grow">
+                <h3 className="text-sm font-semibold text-stone-700 leading-tight">{task.text}</h3>
+                <p className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">
+                  {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : 'archived'} · {PLANTS.find(p => p.id === task.plantId)?.name || 'Lotus'}
+                </p>
+              </div>
+              <button onClick={() => onUnarchive(task.id)} title="Restore" className="p-2 bg-stone-50 text-stone-400 rounded-lg hover:text-emerald-600 transition-colors"><RotateCcw size={14} /></button>
+              <button onClick={() => { if(confirm('Permanently delete?')) onDelete(task.id) }} className="p-2 bg-stone-50 text-stone-300 rounded-lg hover:text-rose-500 transition-all"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
-      </div>
+      )}
 
-      {/* Hour heatmap */}
-      <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">Your Rhythm · When You Bloom</h3>
-        <div className="grid grid-cols-12 md:grid-cols-24 gap-1">
-          {hourData.map((count, hour) => {
-            const intensity = count / maxHour;
-            return (
-              <div key={hour} className="flex flex-col items-center gap-1" title={`${hour}:00 · ${count} actions`}>
-                <div className="w-full aspect-square rounded" style={{ backgroundColor: count === 0 ? '#f5f5f4' : `rgba(5, 150, 105, ${0.2 + intensity * 0.8})` }} />
-                <div className="text-[7px] text-stone-400 font-bold">{hour % 3 === 0 ? hour : ''}</div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-between text-[8px] text-stone-400 uppercase mt-2 font-bold">
-          <span>Midnight</span><span>Noon</span><span>11 PM</span>
-        </div>
-      </div>
+      {view === 'insights' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
+            <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
+            <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
+            <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
+              <Flame size={20} className="text-amber-500 mx-auto mb-1" />
+              <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.current}</div>
+              <div className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">Current Streak</div>
+            </div>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
+              <Trophy size={20} className="text-emerald-600 mx-auto mb-1" />
+              <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.longest}</div>
+              <div className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">Longest Streak</div>
+            </div>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
+              <Calendar size={20} className="text-blue-500 mx-auto mb-1" />
+              <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.totalDays}</div>
+              <div className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">Active Days</div>
+            </div>
+          </div>
 
-      {sessions.length === 0 && tasks.filter(t => t.completedAt).length === 0 && (
-        <p className="text-center text-[10px] text-stone-400 italic">Complete tasks and nurture sessions to fill your almanac</p>
+          <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">Garden Growth · Last 12 Weeks</h3>
+            <div className="flex items-end gap-1 md:gap-2 h-32">
+              {timeline.map((w, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t transition-all hover:from-emerald-700" style={{ height: `${(w.count / maxWeek) * 100}%`, minHeight: w.count > 0 ? '4px' : '0' }} title={`${w.count} blooms`} />
+                  <div className="text-[8px] text-stone-400 font-bold">{w.count}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">Your Rhythm · When You Bloom</h3>
+            <div className="grid grid-cols-12 md:grid-cols-24 gap-1">
+              {hourData.map((count, hour) => {
+                const intensity = count / maxHour;
+                return (
+                  <div key={hour} className="flex flex-col items-center gap-1" title={`${hour}:00 · ${count} actions`}>
+                    <div className="w-full aspect-square rounded" style={{ backgroundColor: count === 0 ? '#f5f5f4' : `rgba(5, 150, 105, ${0.2 + intensity * 0.8})` }} />
+                    <div className="text-[7px] text-stone-400 font-bold">{hour % 3 === 0 ? hour : ''}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-[8px] text-stone-400 uppercase mt-2 font-bold">
+              <span>Midnight</span><span>Noon</span><span>11 PM</span>
+            </div>
+          </div>
+
+          {sessions.length === 0 && tasks.filter(t => t.completedAt).length === 0 && (
+            <p className="text-center text-[10px] text-stone-400 italic">Complete tasks and nurture sessions to fill your insights</p>
+          )}
+        </div>
+      )}
+
+      {view === 'tools' && (
+        <div className="bg-white border border-stone-200 rounded-3xl p-8 text-center max-w-md mx-auto shadow-sm">
+          <h3 className="text-sm font-bold text-stone-800 mb-6 uppercase tracking-widest">Ecosystem Tools</h3>
+          <div className="flex flex-col gap-3">
+            <button onClick={onArchiveAllCompleted} className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100"><Archive size={18} /> Archive All Completed</button>
+            <button onClick={onConnectGoogle} className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}><Calendar size={18} /> {googleToken ? 'Connected' : 'Connect Calendar'}</button>
+          </div>
+          {googleError && <p className="mt-4 text-[10px] text-rose-500 font-bold uppercase tracking-tight p-3 bg-rose-50 rounded-lg">{googleError}</p>}
+        </div>
       )}
     </div>
   );
