@@ -891,9 +891,6 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <div className="w-12 md:w-20 h-1 bg-stone-100 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-600 transition-all duration-1000" style={{ width: `${stats.health}%` }} />
-                </div>
-                <span className="text-[8px] font-bold text-stone-400 uppercase tracking-wider">{stats.health}% Vitality</span>
-              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1105,7 +1102,6 @@ function Shed({ user, tasks, archivedTasks, stats, onUnarchive, onDelete, onArch
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
             <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
-            <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
             <div className="bg-white border border-stone-200 rounded-2xl p-4 text-center shadow-sm">
               <Flame size={20} className="text-amber-500 mx-auto mb-1" />
               <div className="text-2xl md:text-3xl font-black text-stone-800">{streaks.current}</div>
