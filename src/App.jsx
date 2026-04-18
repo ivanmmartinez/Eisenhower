@@ -47,7 +47,7 @@ import {
   Compass,
   Calendar,
   Link2,
-  ExternalLink
+  Archive
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -193,7 +193,6 @@ export default function App() {
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     try {
       let result;
-      // If user is already logged in with email, we link. Otherwise we sign in.
       if (auth.currentUser) {
         result = await linkWithPopup(auth.currentUser, provider);
       } else {
@@ -213,7 +212,7 @@ export default function App() {
       return;
     }
     setIsSyncing(true);
-    const start = new Date();
+    const start = task.dueDate ? new Date(task.dueDate) : new Date();
     const end = new Date(start.getTime() + 30 * 60000);
     try {
       const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
@@ -249,7 +248,9 @@ export default function App() {
       quadrant: 'inbox',
       completed: false,
       watered: 0,
-      createdAt: Date.now()
+      archived: false,
+      createdAt: Date.now(),
+      dueDate: null
     });
     setNewTaskText('');
   };
@@ -290,7 +291,7 @@ export default function App() {
       await archiveTask(task.id);
     }
   };
-  
+
   const deleteTask = async (id) => {
     if (!db) return;
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', id));
@@ -312,7 +313,7 @@ export default function App() {
     });
     return b;
   }, [activeTasks]);
-  
+
   const stats = useMemo(() => {
     const total = tasks.length;
     const done = tasks.filter(t => t.completed).length;
@@ -352,8 +353,8 @@ export default function App() {
             else await createUserWithEmailAndPassword(auth, email, password);
           } catch (err) { setAuthError(err.message); }
         }} className="space-y-3">
-          <input type="email" required placeholder="Email" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Password" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+          <input type="email" required placeholder="Gardener Email" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Secret Key" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
           {authError && <p className="text-rose-600 text-[10px] font-bold uppercase">{authError}</p>}
           <button type="submit" className="w-full bg-emerald-800 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition-all shadow-md text-sm uppercase tracking-widest">
             {authMode === 'login' ? 'Enter Grove' : 'Plant Roots'}
@@ -477,9 +478,8 @@ export default function App() {
                   onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }} 
                   onDelete={() => deleteTask(task.id)} 
                   onDragStart={(e) => handleDragStart(e, task.id)}
-                  isInbox 
-                  onNurture={() => startNurture(task)}
                   onComplete={() => toggleComplete(task)}
+                  isInbox 
                 />
               ))}
               {grouped.inbox.length === 0 && (
@@ -522,6 +522,8 @@ export default function App() {
                       onDelete={() => deleteTask(task.id)} 
                       onDragStart={(e) => handleDragStart(e, task.id)}
                       onCalendar={() => scheduleInGoogleCalendar(task)}
+                      onDueDate={(val) => setDueDate(task.id, val)}
+                      onArchive={() => archiveTask(task.id)}
                       isSyncing={isSyncing}
                     />
                   ))}
@@ -541,17 +543,24 @@ export default function App() {
             </div>
             
             <div className="bg-white border border-stone-200 rounded-3xl p-8 text-center max-w-md mx-auto shadow-sm">
-               <h3 className="text-sm font-bold text-stone-800 mb-6 uppercase tracking-widest">External Connectivity</h3>
-               <button 
-                  onClick={connectGoogle}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}
-               >
-                 {isSyncing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Calendar size={18} />}
-                 {googleToken ? 'Connected' : 'Connect Calendar'}
-               </button>
+               <h3 className="text-sm font-bold text-stone-800 mb-6 uppercase tracking-widest">Ecosystem Tools</h3>
+               <div className="flex flex-col gap-3">
+                 <button 
+                    onClick={archiveAllCompleted}
+                    className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100"
+                 >
+                   <Archive size={18} />
+                   Archive All Completed
+                 </button>
+                 <button 
+                    onClick={connectGoogle}
+                    className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}
+                 >
+                   <Calendar size={18} />
+                   {googleToken ? 'Connected' : 'Connect Calendar'}
+                 </button>
+               </div>
                {googleError && <p className="mt-4 text-[10px] text-rose-500 font-bold uppercase tracking-tight p-3 bg-rose-50 rounded-lg">{googleError}</p>}
-               {!googleToken && !googleError && <p className="mt-4 text-[10px] text-stone-400 px-4 leading-relaxed uppercase font-medium tracking-wider">Note: Link via your Vercel URL to avoid browser restrictions.</p>}
-               {googleToken && <button onClick={() => setGoogleToken(null)} className="mt-4 text-[9px] text-stone-300 uppercase font-black tracking-widest hover:text-rose-500 transition-colors">Disconnect</button>}
             </div>
           </div>
         )}
@@ -585,7 +594,7 @@ function NavIcon({ active, onClick, icon }) {
   );
 }
 
-function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart, onCalendar, isInbox = false, isSyncing = false }) {
+function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart, onCalendar, onDueDate, onArchive, isInbox = false, isSyncing = false }) {
   const quad = QUADRANTS.find(q => q.id === task.quadrant);
   const isBloom = task.completed || (quad && task.watered >= quad.stages);
   
@@ -603,13 +612,25 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart
         </div>
         <div className="grow overflow-hidden">
           <h3 className="text-xs md:text-sm font-bold text-stone-800 truncate leading-none">{task.text}</h3>
-          {!isInbox && quad?.id !== 'eliminate' && !task.completed && (
-            <div className="flex gap-1 mt-1">
-              {[...Array(quad?.stages || 1)].map((_, i) => (
-                <div key={i} className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${i < (task.watered || 0) ? 'bg-emerald-600' : 'bg-stone-100'}`} />
-              ))}
-            </div>
-          )}
+          
+          <div className="flex items-center gap-2 mt-1">
+            {!isInbox && quad?.id !== 'eliminate' && !task.completed && (
+              <div className="flex gap-1">
+                {[...Array(quad?.stages || 1)].map((_, i) => (
+                  <div key={i} className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${i < (task.watered || 0) ? 'bg-emerald-600' : 'bg-stone-100'}`} />
+                ))}
+              </div>
+            )}
+
+            {quad?.id === 'schedule' && !task.completed && (
+              <input 
+                 type="date" 
+                 value={task.dueDate || ''} 
+                 onChange={(e) => onDueDate(e.target.value)}
+                 className="bg-stone-50 border-none text-[8px] md:text-[9px] text-stone-400 font-bold uppercase tracking-wider p-0 outline-none cursor-pointer hover:text-emerald-600"
+              />
+            )}
+          </div>
         </div>
       </div>
       
@@ -642,12 +663,6 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart
         {task.completed && (
           <button onClick={onArchive} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100 hover:text-emerald-600" title="Archive">
             <Archive size={14} />
-          </button>
-        )}
-        
-        {!isInbox && (
-          <button onClick={onAction} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100" title="Move">
-            <Settings size={14} />
           </button>
         )}
 
