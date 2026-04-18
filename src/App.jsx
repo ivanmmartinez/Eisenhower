@@ -467,7 +467,7 @@ export default function App() {
             onDrop={(e) => handleDrop(e, 'inbox')}
           >
             <form onSubmit={addTask} className="relative group">
-              <input autoFocus type="text" placeholder="Capture a seed..." className="w-full px-5 py-3 md:py-4 bg-white border border-stone-200 rounded-xl text-sm md:text-base font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
+              <input autoFocus type="text" placeholder="Plant a Seed" className="w-full px-5 py-3 md:py-4 bg-white border border-stone-200 rounded-xl text-sm md:text-base font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
               <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-700 p-1.5 md:p-2 rounded-lg text-white shadow-md hover:bg-emerald-800 transition-all"><Plus size={18} /></button>
             </form>
             <div className="grid grid-cols-1 gap-2">
