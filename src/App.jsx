@@ -176,7 +176,10 @@ export default function App() {
       const quad = QUADRANTS.find(q => q.id === focusTask.quadrant);
       const newWatered = (focusTask.watered || 0) + 1;
       const updates = { watered: newWatered };
-      if (quad && newWatered >= quad.stages) updates.completed = true;
+      uif (quad && newWatered >= quad.stages) {
+        updates.completed = true;
+        updates.completedAt = Date.now();
+      }
       await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', focusTask.id), updates);
       setFocusTask(null);
     }
@@ -248,6 +251,7 @@ export default function App() {
       watered: 0,
       archived: false,
       createdAt: Date.now(),
+      completedAt: null,
       dueDate: null
     });
     setNewTaskText('');
@@ -258,7 +262,7 @@ export default function App() {
     if (!taskId || !db) return;
     await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), { quadrant: qid });
     setShowPlantMenu(false);
-    setSelectedTask(null);
+    setSelectedTask(null); // Initialize completion timestamp
     setDraggedId(null);
   };
 
@@ -273,6 +277,7 @@ export default function App() {
     const isDone = !task.completed;
     await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', task.id), {
       completed: isDone,
+      completedAt: isDone ? Date.now() : null, // Record or clear completion timestamp
       watered: isDone && quad ? quad.stages : task.watered
     });
   };
@@ -348,8 +353,8 @@ export default function App() {
             else await createUserWithEmailAndPassword(auth, email, password);
           } catch (err) { console.error(err); }
         }} className="space-y-3">
-          <input type="email" required placeholder="Gardener Email" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Secret Key" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm" value={password} onChange={e => setPassword(e.target.value)} />
+          <input type="email" required placeholder="Email" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Password" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm" value={password} onChange={e => setPassword(e.target.value)} />
           <button type="submit" className="w-full bg-emerald-800 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition-all text-sm uppercase tracking-widest">
             {authMode === 'login' ? 'Enter Grove' : 'Plant Roots'}
           </button>
@@ -504,10 +509,9 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in duration-300">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <StatCard label="Harvested" val={stats.done} icon={<Flower2 size={20} className="text-emerald-600" />} />
               <StatCard label="Growing" val={stats.total - stats.done} icon={<Sprout size={20} className="text-emerald-700" />} />
-              <StatCard label="Mins" val={tasks.reduce((acc, t) => acc + (t.watered || 0), 0) * sessionMins} icon={<Droplets size={20} className="text-blue-500" />} />
               <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
             </div>
             <div className="bg-white border border-stone-200 rounded-3xl p-8 text-center max-w-md mx-auto shadow-sm">
