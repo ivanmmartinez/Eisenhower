@@ -633,6 +633,18 @@ function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart
            </button>
         )}
 
+        {!isInbox && !task.completed && (
+          <button onClick={onAction} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100 transition-colors" title="Move">
+            <Settings size={14} />
+          </button>
+        )}
+
+        {task.completed && (
+          <button onClick={onArchive} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100 hover:text-emerald-600" title="Archive">
+            <Archive size={14} />
+          </button>
+        )}
+        
         {!isInbox && (
           <button onClick={onAction} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100" title="Move">
             <Settings size={14} />
