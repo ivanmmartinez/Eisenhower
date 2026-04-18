@@ -79,10 +79,10 @@ if (isConfigValid) {
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'grove-v2-final';
 
 const QUADRANTS = [
-  { id: 'do', name: 'Do First', desc: 'Urgent & Important', color: 'text-rose-600', border: 'border-rose-100', bg: 'bg-rose-50', icon: <Zap size={16} />, stages: 2 },
-  { id: 'schedule', name: 'Schedule', desc: 'Important, Not Urgent', color: 'text-emerald-600', border: 'border-emerald-100', bg: 'bg-emerald-50', icon: <Clock size={16} />, stages: 4 },
-  { id: 'delegate', name: 'Delegate', desc: 'Urgent, Not Important', color: 'text-blue-600', border: 'border-blue-100', bg: 'bg-blue-50', icon: <Users size={16} />, stages: 2 },
-  { id: 'eliminate', name: 'Eliminate', desc: 'Distractions', color: 'text-slate-500', border: 'border-slate-200', bg: 'bg-slate-50', icon: <Bug size={16} />, stages: 1 },
+  { id: 'do', name: 'Do First', desc: 'Urgent & Important', color: 'text-rose-600', border: 'border-rose-100', bg: 'bg-rose-50', icon: <Zap size={14} />, stages: 2 },
+  { id: 'schedule', name: 'Schedule', desc: 'Important, Not Urgent', color: 'text-emerald-600', border: 'border-emerald-100', bg: 'bg-emerald-50', icon: <Clock size={14} />, stages: 4 },
+  { id: 'delegate', name: 'Delegate', desc: 'Urgent, Not Important', color: 'text-blue-600', border: 'border-blue-100', bg: 'bg-blue-50', icon: <Users size={14} />, stages: 2 },
+  { id: 'eliminate', name: 'Eliminate', desc: 'Distractions', color: 'text-slate-500', border: 'border-slate-200', bg: 'bg-slate-50', icon: <Bug size={14} />, stages: 1 },
 ];
 
 const PlantGraphic = ({ type, watered, completed }) => {
@@ -90,24 +90,23 @@ const PlantGraphic = ({ type, watered, completed }) => {
   const progress = watered / (quad.stages || 1);
   
   if (type === 'eliminate') {
-    return <Bug className={`w-8 h-8 md:w-10 md:h-10 transition-all ${completed ? 'scale-0 opacity-0' : 'text-zinc-400 animate-pulse'}`} />;
+    return <Bug className={`w-7 h-7 md:w-8 md:h-8 transition-all ${completed ? 'scale-0 opacity-0' : 'text-zinc-400 animate-pulse'}`} />;
   }
 
   return (
-    <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-end justify-center">
-      <div className="absolute bottom-0 w-8 h-1 bg-black/10 rounded-full blur-sm" />
+    <div className="relative w-8 h-8 md:w-10 md:h-10 flex items-end justify-center">
+      <div className="absolute bottom-0 w-6 h-0.5 bg-black/10 rounded-full blur-sm" />
       <div className="transition-all duration-700 ease-out flex flex-col items-center"
            style={{ transform: `scale(${0.7 + (progress * 0.3)})` }}>
         {watered === 0 && !completed ? (
-          <div className="w-3.5 h-3.5 bg-[#3a2a1d] rounded-full border-2 border-white/10 shadow-sm animate-bounce" />
+          <div className="w-3 h-3 bg-[#3a2a1d] rounded-full border border-white/10 shadow-sm animate-bounce" />
         ) : (
           <div className="relative flex flex-col items-center">
             {type === 'schedule' ? (
-              <Trees className={`w-8 h-8 md:w-10 md:h-10 ${completed ? 'text-emerald-300' : 'text-emerald-500'}`} />
+              <Trees className={`w-6 h-6 md:w-8 md:h-8 ${completed ? 'text-emerald-300' : 'text-emerald-500'}`} />
             ) : (
-              <Flower2 className={`w-8 h-8 md:w-9 md:h-9 ${completed ? 'text-emerald-600' : quad.id === 'do' ? 'text-rose-400' : 'text-blue-400'}`} />
+              <Flower2 className={`w-6 h-6 md:w-8 md:h-8 ${completed ? 'text-emerald-600' : quad.id === 'do' ? 'text-rose-400' : 'text-blue-400'}`} />
             )}
-            <div className="w-0.5 h-3 bg-emerald-900/20 rounded-full -mt-0.5" />
           </div>
         )}
       </div>
@@ -122,7 +121,6 @@ export default function App() {
   const [newTaskText, setNewTaskText] = useState('');
   const [activeTab, setActiveTab] = useState('inbox');
   
-  // UI States
   const [selectedTask, setSelectedTask] = useState(null);
   const [showPlantMenu, setShowPlantMenu] = useState(false);
   const [focusTask, setFocusTask] = useState(null);
@@ -131,16 +129,13 @@ export default function App() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [draggedId, setDraggedId] = useState(null);
 
-  // Google Calendar States
   const [googleToken, setGoogleToken] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [googleError, setGoogleError] = useState(null);
 
-  // Auth States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState('login');
-  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
     if (!isConfigValid || !auth) { setLoading(false); return; }
@@ -193,31 +188,33 @@ export default function App() {
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     try {
       let result;
-      if (auth.currentUser) {
-        result = await linkWithPopup(auth.currentUser, provider);
-      } else {
-        result = await signInWithPopup(auth, provider);
-      }
+      if (auth.currentUser) result = await linkWithPopup(auth.currentUser, provider);
+      else result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      setGoogleToken(credential.accessToken);
+      const token = credential.accessToken;
+      setGoogleToken(token);
+      return token; // Return token for immediate use
     } catch (error) {
       console.error("Google Auth Error:", error);
       setGoogleError(error.message);
+      return null;
     }
   };
 
   const scheduleInGoogleCalendar = async (task) => {
-    if (!googleToken) {
-      await connectGoogle();
-      return;
+    let currentToken = googleToken;
+    if (!currentToken) {
+      currentToken = await connectGoogle();
     }
+    if (!currentToken) return;
+    
     setIsSyncing(true);
     const start = task.dueDate ? new Date(task.dueDate) : new Date();
     const end = new Date(start.getTime() + 30 * 60000);
     try {
       const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${googleToken}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           summary: `[Grove] ${task.text}`,
           description: 'Scheduled via Priority Grove Hub',
@@ -230,7 +227,8 @@ export default function App() {
         const errData = await response.json();
         if (errData.error?.status === "UNAUTHENTICATED") {
           setGoogleToken(null);
-          await connectGoogle();
+          const newToken = await connectGoogle();
+          if (newToken) scheduleInGoogleCalendar(task); // Retry once with new token
         } else {
           setGoogleError(`Calendar API Error: ${errData.error?.message || 'Unknown'}`);
         }
@@ -297,14 +295,12 @@ export default function App() {
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', id));
   };
 
-  // --- SMART SORTING & GROUPING ---
   const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks]);
   
   const grouped = useMemo(() => {
     const b = { inbox: [], do: [], schedule: [], delegate: [], eliminate: [] };
     activeTasks.forEach(t => { if (b[t.quadrant]) b[t.quadrant].push(t); });
     
-    // Within each group: Completed tasks at the bottom, otherwise sort by newest
     Object.keys(b).forEach(key => {
       b[key].sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? 1 : -1;
@@ -315,11 +311,11 @@ export default function App() {
   }, [activeTasks]);
 
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const done = tasks.filter(t => t.completed).length;
+    const total = activeTasks.length;
+    const done = activeTasks.filter(t => t.completed).length;
     const health = total === 0 ? 100 : Math.round((done / total) * 100);
     return { total, done, health };
-  }, [tasks]);
+  }, [activeTasks]);
 
   const handleDragStart = (e, taskId) => {
     setDraggedId(taskId);
@@ -347,16 +343,14 @@ export default function App() {
         <p className="text-stone-400 text-[10px] font-black uppercase tracking-widest mb-8 italic">Cultivate your focus</p>
         <form onSubmit={async (e) => {
           e.preventDefault();
-          setAuthError('');
           try {
             if (authMode === 'login') await signInWithEmailAndPassword(auth, email, password);
             else await createUserWithEmailAndPassword(auth, email, password);
-          } catch (err) { setAuthError(err.message); }
+          } catch (err) { console.error(err); }
         }} className="space-y-3">
-          <input type="email" required placeholder="Gardener Email" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Secret Key" className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:border-emerald-600 outline-none text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
-          {authError && <p className="text-rose-600 text-[10px] font-bold uppercase">{authError}</p>}
-          <button type="submit" className="w-full bg-emerald-800 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition-all shadow-md text-sm uppercase tracking-widest">
+          <input type="email" required placeholder="Gardener Email" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Secret Key" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl outline-none text-sm" value={password} onChange={e => setPassword(e.target.value)} />
+          <button type="submit" className="w-full bg-emerald-800 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition-all text-sm uppercase tracking-widest">
             {authMode === 'login' ? 'Enter Grove' : 'Plant Roots'}
           </button>
         </form>
@@ -370,7 +364,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8faf8] text-stone-800 font-sans pb-24 md:pb-12 overflow-x-hidden selection:bg-emerald-500/10">
       
-      {/* NURTURE TIMER OVERLAY */}
+      {/* NURTURE TIMER */}
       {focusTask && (
         <div className="fixed inset-0 z-[100] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="flex gap-2 mb-8 bg-stone-100 p-1 rounded-full">
@@ -408,7 +402,7 @@ export default function App() {
           <div className="max-w-md md:max-w-xl w-full bg-white rounded-[2rem] p-6 pb-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in duration-300">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg md:text-xl font-bold text-stone-800 uppercase tracking-tight italic">Assign Strategy</h3>
-              <button onClick={() => setShowPlantMenu(false)} className="p-2 text-stone-300 hover:text-stone-600 transition-colors"><X size={18} /></button>
+              <button onClick={() => setShowPlantMenu(false)} className="p-2 text-stone-300 hover:text-stone-600"><X size={18} /></button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               <button onClick={() => setQuadrant('inbox')} className="md:col-span-2 flex items-center gap-4 p-3 rounded-xl border border-stone-100 hover:border-emerald-600 hover:bg-stone-50 transition-all text-left">
@@ -462,25 +456,17 @@ export default function App() {
 
         {activeTab === 'inbox' && (
           <div 
-            className="max-w-2xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-2"
+            className="max-w-3xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-2"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDrop(e, 'inbox')}
           >
             <form onSubmit={addTask} className="relative group">
-              <input autoFocus type="text" placeholder="Plant a Seed" className="w-full px-5 py-3 md:py-4 bg-white border border-stone-200 rounded-xl text-sm md:text-base font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
+              <input autoFocus type="text" placeholder="Capture a seed..." className="w-full px-5 py-3 md:py-4 bg-white border border-stone-200 rounded-xl text-sm md:text-base font-medium text-stone-700 outline-none focus:border-emerald-600 transition-all shadow-sm" value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
               <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-700 p-1.5 md:p-2 rounded-lg text-white shadow-md hover:bg-emerald-800 transition-all"><Plus size={18} /></button>
             </form>
             <div className="grid grid-cols-1 gap-2">
               {grouped.inbox.map(task => (
-                <TaskItem 
-                  key={task.id} 
-                  task={task} 
-                  onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }} 
-                  onDelete={() => deleteTask(task.id)} 
-                  onDragStart={(e) => handleDragStart(e, task.id)}
-                  onComplete={() => toggleComplete(task)}
-                  isInbox 
-                />
+                <TaskItem key={task.id} task={task} onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }} onDelete={() => deleteTask(task.id)} onDragStart={(e) => handleDragStart(e, task.id)} onComplete={() => toggleComplete(task)} isInbox />
               ))}
               {grouped.inbox.length === 0 && (
                 <div className="py-12 text-center text-stone-200 flex flex-col items-center border-2 border-dashed border-stone-100 rounded-3xl">
@@ -495,17 +481,12 @@ export default function App() {
         {activeTab === 'garden' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-8 animate-in fade-in duration-500">
             {QUADRANTS.map(q => (
-              <div 
-                key={q.id} 
-                className={`space-y-3 p-4 md:p-6 rounded-2xl border-2 border-dashed ${q.border} bg-white/40 transition-colors min-h-[160px] shadow-sm`}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => handleDrop(e, q.id)}
-              >
+              <div key={q.id} className={`space-y-3 p-4 md:p-6 rounded-2xl border-2 border-dashed ${q.border} bg-white/40 transition-colors min-h-[160px] shadow-sm`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, q.id)}>
                 <div className="flex items-center justify-between px-1 mb-2">
                   <div className="flex items-center gap-2">
                     <div className={`${q.color} ${q.bg} p-1.5 rounded-lg shadow-sm border border-stone-100/50`}>{q.icon}</div>
-                    <div>
-                      <h2 className="text-[11px] md:text-sm font-bold text-stone-800 uppercase tracking-tighter leading-none">{q.name}</h2>
+                    <div className="leading-none">
+                      <h2 className="text-[11px] md:text-sm font-bold text-stone-800 uppercase tracking-tighter">{q.name}</h2>
                       <p className="text-[8px] md:text-[9px] font-bold text-stone-400 uppercase tracking-widest">{q.desc}</p>
                     </div>
                   </div>
@@ -513,19 +494,7 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {grouped[q.id].map(task => (
-                    <TaskItem 
-                      key={task.id} 
-                      task={task} 
-                      onNurture={() => startNurture(task)} 
-                      onComplete={() => toggleComplete(task)} 
-                      onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }}
-                      onDelete={() => deleteTask(task.id)} 
-                      onDragStart={(e) => handleDragStart(e, task.id)}
-                      onCalendar={() => scheduleInGoogleCalendar(task)}
-                      onDueDate={(val) => setDueDate(task.id, val)}
-                      onArchive={() => archiveTask(task.id)}
-                      isSyncing={isSyncing}
-                    />
+                    <TaskItem key={task.id} task={task} onNurture={() => startNurture(task)} onComplete={() => toggleComplete(task)} onAction={() => { setSelectedTask(task); setShowPlantMenu(true); }} onDelete={() => deleteTask(task.id)} onDragStart={(e) => handleDragStart(e, task.id)} onCalendar={() => scheduleInGoogleCalendar(task)} onDueDate={(val) => setDueDate(task.id, val)} onArchive={() => archiveTask(task.id)} isSyncing={isSyncing} />
                   ))}
                 </div>
               </div>
@@ -541,24 +510,11 @@ export default function App() {
               <StatCard label="Mins" val={tasks.reduce((acc, t) => acc + (t.watered || 0), 0) * sessionMins} icon={<Droplets size={20} className="text-blue-500" />} />
               <StatCard label="Vitality" val={stats.health + "%"} icon={<Trophy size={20} className="text-amber-500" />} />
             </div>
-            
             <div className="bg-white border border-stone-200 rounded-3xl p-8 text-center max-w-md mx-auto shadow-sm">
                <h3 className="text-sm font-bold text-stone-800 mb-6 uppercase tracking-widest">Ecosystem Tools</h3>
                <div className="flex flex-col gap-3">
-                 <button 
-                    onClick={archiveAllCompleted}
-                    className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100"
-                 >
-                   <Archive size={18} />
-                   Archive All Completed
-                 </button>
-                 <button 
-                    onClick={connectGoogle}
-                    className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}
-                 >
-                   <Calendar size={18} />
-                   {googleToken ? 'Connected' : 'Connect Calendar'}
-                 </button>
+                 <button onClick={archiveAllCompleted} className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100"><Archive size={18} /> Archive All Completed</button>
+                 <button onClick={connectGoogle} className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${googleToken ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-stone-900 text-white hover:bg-black shadow-lg shadow-stone-200'}`}><Calendar size={18} /> {googleToken ? 'Connected' : 'Connect Calendar'}</button>
                </div>
                {googleError && <p className="mt-4 text-[10px] text-rose-500 font-bold uppercase tracking-tight p-3 bg-rose-50 rounded-lg">{googleError}</p>}
             </div>
@@ -566,7 +522,6 @@ export default function App() {
         )}
       </main>
 
-      {/* MOBILE BOTTOM NAV */}
       <nav className="fixed bottom-4 left-0 right-0 px-4 z-40 md:hidden pointer-events-none">
         <div className="max-w-xs mx-auto bg-white/90 backdrop-blur-md border border-stone-200 rounded-2xl p-1 flex justify-between shadow-xl pointer-events-auto">
           <NavIcon active={activeTab === 'inbox'} onClick={() => setActiveTab('inbox')} icon={<Inbox size={20} />} />
@@ -579,126 +534,58 @@ export default function App() {
 }
 
 function TabButton({ active, onClick, label }) {
-  return (
-    <button onClick={onClick} className={`px-5 py-1.5 md:px-8 md:py-2.5 rounded-full text-[10px] md:text-sm font-bold transition-all ${active ? 'bg-emerald-800 text-white shadow-sm' : 'bg-white text-stone-400 border border-stone-200 hover:border-stone-300'}`}>
-      {label}
-    </button>
-  );
+  return <button onClick={onClick} className={`px-5 py-1.5 md:px-8 md:py-2.5 rounded-full text-[10px] md:text-sm font-bold transition-all ${active ? 'bg-emerald-800 text-white shadow-sm' : 'bg-white text-stone-400 border border-stone-200 hover:border-stone-300'}`}>{label}</button>;
 }
 
 function NavIcon({ active, onClick, icon }) {
-  return (
-    <button onClick={onClick} className={`p-3 flex-1 flex justify-center rounded-xl transition-all ${active ? 'bg-emerald-50 text-emerald-800' : 'text-stone-300 hover:text-stone-500'}`}>
-      {icon}
-    </button>
-  );
+  return <button onClick={onClick} className={`p-3 flex-1 flex justify-center rounded-xl transition-all ${active ? 'bg-emerald-50 text-emerald-800' : 'text-stone-300 hover:text-stone-500'}`}>{icon}</button>;
 }
 
 function TaskItem({ task, onNurture, onComplete, onAction, onDelete, onDragStart, onCalendar, onDueDate, onArchive, isInbox = false, isSyncing = false }) {
   const quad = QUADRANTS.find(q => q.id === task.quadrant);
   const isBloom = task.completed || (quad && task.watered >= quad.stages);
+  const isSchedule = quad?.id === 'schedule';
   
   return (
-    <div 
-      draggable
-      onDragStart={onDragStart}
-      className={`bg-white border border-stone-100 rounded-xl p-2.5 md:p-3 flex flex-col gap-2.5 md:gap-3 transition-all hover:border-emerald-300 hover:shadow-sm cursor-grab active:cursor-grabbing ${task.completed ? 'opacity-40 grayscale bg-stone-50' : 'shadow-sm'}`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="shrink-0 flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-lg bg-stone-50 text-emerald-700 shadow-inner">
-          <div className="relative">
-            {isBloom ? <Flower2 size={18} className="animate-in zoom-in" /> : (task.watered || 0) > 0 ? <Sprout size={16} /> : <GripVertical size={12} className="text-stone-200" />}
-          </div>
+    <div draggable onDragStart={onDragStart} className={`bg-white border border-stone-100 rounded-xl p-2 md:p-2.5 flex flex-col gap-1.5 md:gap-2 transition-all hover:border-emerald-300 hover:shadow-sm cursor-grab active:cursor-grabbing ${task.completed ? 'opacity-40 grayscale bg-stone-50' : 'shadow-sm'}`}>
+      <div className="flex items-center gap-2.5">
+        <div className="shrink-0 flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-lg bg-stone-50 text-emerald-700">
+          {isBloom ? <Flower2 size={16} className="animate-in zoom-in text-emerald-600" /> : (task.watered || 0) > 0 ? <Sprout size={14} /> : <GripVertical size={12} className="text-stone-200" />}
         </div>
         <div className="grow overflow-hidden">
-          <h3 className="text-xs md:text-sm font-bold text-stone-800 truncate leading-none">{task.text}</h3>
+          <h3 className="text-xs md:text-sm font-semibold text-stone-800 truncate leading-tight">{task.text}</h3>
           
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2">
             {!isInbox && quad?.id !== 'eliminate' && !task.completed && (
-              <div className="flex gap-1">
+              <div className="flex gap-0.5">
                 {[...Array(quad?.stages || 1)].map((_, i) => (
-                  <div key={i} className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${i < (task.watered || 0) ? 'bg-emerald-600' : 'bg-stone-100'}`} />
+                  <div key={i} className={`w-1 h-1 rounded-full ${i < (task.watered || 0) ? 'bg-emerald-600' : 'bg-stone-100'}`} />
                 ))}
               </div>
             )}
-
-            {quad?.id === 'schedule' && !task.completed && (
-              <input 
-                 type="date" 
-                 value={task.dueDate || ''} 
-                 onChange={(e) => onDueDate(e.target.value)}
-                 className="bg-stone-50 border-none text-[8px] md:text-[9px] text-stone-400 font-bold uppercase tracking-wider p-0 outline-none cursor-pointer hover:text-emerald-600"
-              />
+            {isSchedule && !task.completed && (
+              <input type="date" value={task.dueDate || ''} onChange={(e) => onDueDate(e.target.value)} className="bg-stone-50 border-none text-[8px] md:text-[9px] text-stone-500 font-bold uppercase p-0 outline-none cursor-pointer hover:text-emerald-600" />
             )}
           </div>
         </div>
       </div>
       
-      <div className="flex gap-1.5 items-center">
-        {isInbox ? (
-          <button onClick={onAction} className="flex-1 bg-emerald-700 text-white py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:bg-emerald-800 transition-colors">Plant</button>
-        ) : !task.completed && quad?.id !== 'eliminate' ? (
-          <button onClick={onNurture} className="flex-1 bg-emerald-700 text-white py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:bg-emerald-800 transition-colors">Nurture</button>
-        ) : (
-          <div className="flex-1" />
-        )}
-        
-        {quad?.id === 'schedule' && !task.completed && (
-           <button 
-             onClick={onCalendar}
-             disabled={isSyncing}
-             className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-             title="Schedule"
-           >
-             <Calendar size={14} className={isSyncing ? 'animate-pulse' : ''} />
-           </button>
-        )}
-
-        {!isInbox && !task.completed && (
-          <button onClick={onAction} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100 transition-colors" title="Move">
-            <Settings size={14} />
-          </button>
-        )}
-
-        {task.completed && (
-          <button onClick={onArchive} className="p-1 md:p-1.5 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100 hover:text-emerald-600" title="Archive">
-            <Archive size={14} />
-          </button>
-        )}
-
-        <button onClick={onComplete} className={`p-1 md:p-1.5 rounded-lg border transition-all ${task.completed ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-white text-stone-200 border-stone-100 hover:text-emerald-700'}`}><CheckCircle2 size={16} /></button>
-        <button onClick={() => { if(confirm('Uproot?')) onDelete() }} className="p-1 md:p-1.5 bg-stone-50 text-stone-200 rounded-lg hover:text-rose-500 transition-all"><Trash2 size={16} /></button>
+      <div className="flex gap-1 items-center">
+        {isInbox ? (<button onClick={onAction} className="flex-1 bg-emerald-700 text-white py-1 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:bg-emerald-800 transition-colors">Plant</button>) : !task.completed && quad?.id !== 'eliminate' ? (<button onClick={onNurture} className="flex-1 bg-emerald-700 text-white py-1 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:bg-emerald-800 transition-colors">Nurture</button>) : (<div className="flex-1" />)}
+        {isSchedule && !task.completed && (<button onClick={onCalendar} disabled={isSyncing} className="p-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors" title="Schedule"><Calendar size={12} className={isSyncing ? 'animate-pulse' : ''} /></button>)}
+        {!isInbox && !task.completed && (<button onClick={onAction} className="p-1 bg-stone-50 text-stone-400 rounded-lg hover:bg-stone-100" title="Move"><Settings size={12} /></button>)}
+        {task.completed && (<button onClick={onArchive} className="p-1 bg-stone-50 text-stone-400 rounded-lg hover:text-emerald-600" title="Archive"><Archive size={12} /></button>)}
+        <button onClick={onComplete} className={`p-1 rounded-lg border transition-all ${task.completed ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-white text-stone-200 border-stone-100 hover:text-emerald-700'}`}><CheckCircle2 size={14} /></button>
+        <button onClick={() => { if(confirm('Uproot?')) onDelete() }} className="p-1 bg-stone-50 text-stone-200 rounded-lg hover:text-rose-500 transition-all"><Trash2 size={14} /></button>
       </div>
     </div>
   );
 }
 
 function StatCard({ label, val, icon }) {
-  return (
-    <div className="bg-white border border-stone-200 p-4 md:p-6 rounded-2xl md:rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all">
-      <div className="flex justify-center mb-1 md:mb-2 opacity-50">{icon}</div>
-      <div className="text-lg md:text-3xl font-black text-stone-800 mb-0.5">{val}</div>
-      <div className="text-[8px] md:text-[9px] font-black text-stone-400 uppercase tracking-widest">{label}</div>
-    </div>
-  );
+  return <div className="bg-white border border-stone-200 p-4 md:p-6 rounded-2xl md:rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all"><div className="flex justify-center mb-1 md:mb-2 opacity-50">{icon}</div><div className="text-lg md:text-3xl font-black text-stone-800 mb-0.5">{val}</div><div className="text-[8px] md:text-[9px] font-black text-stone-400 uppercase tracking-widest">{label}</div></div>;
 }
 
-function Loader() {
-  return (
-    <div className="h-screen bg-[#f8faf8] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-}
+function Loader() { return <div className="h-screen bg-[#f8faf8] flex items-center justify-center"><div className="w-10 h-10 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin" /></div>; }
 
-function SetupUI() {
-  return (
-    <div className="min-h-screen bg-[#f8faf8] flex items-center justify-center p-8 text-center">
-      <div className="max-w-md w-full bg-white border border-stone-200 rounded-3xl p-10 shadow-sm">
-        <AlertCircle size={40} className="text-rose-500 mx-auto mb-4" />
-        <h2 className="text-lg font-bold mb-3 text-stone-800">Setup Required</h2>
-        <p className="text-stone-500 text-xs mb-6 leading-relaxed text-center">Firebase keys missing in App.jsx.</p>
-      </div>
-    </div>
-  );
-}
+function SetupUI() { return <div className="min-h-screen bg-[#f8faf8] flex items-center justify-center p-8 text-center"><div className="max-w-md w-full bg-white border border-stone-200 rounded-3xl p-10 shadow-sm"><AlertCircle size={40} className="text-rose-500 mx-auto mb-4" /><h2 className="text-lg font-bold mb-3 text-stone-800 uppercase tracking-tighter">Vault Locked</h2><p className="text-stone-500 text-xs mb-6 leading-relaxed text-center">System requires Firebase API keys in App.jsx (Lines 34-45).</p></div></div>; }
